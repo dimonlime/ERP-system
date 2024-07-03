@@ -19,10 +19,98 @@ class SOrderAdd(BaseModel):
     flag: Optional[bool] = False
 
 
+class SShipmentAdd(BaseModel):
+    order_id: int
+    create_date: str
+    change_date: str
+    quantity_s: int
+    quantity_m: int
+    quantity_l: int
+    status: str
+    sending_method: str
+    sack_number: str
+    sending_method: str
+    fish: str
+    cheque: str
+    document_1_id: str
+    document_2_id: str
+    image_1_id: str
+    image_2_id: str
+
+
+class SChequeAdd(BaseModel):
+    shipment_id: int
+    order_id: int
+    date: str
+    create_date: str
+    shop_name: str
+    cheque_number: int
+    vendor_internal_article: str
+    price: int
+    cheque_image_id: str
+    cheque_status: str
+    payment_image: str
+
+
+class SFishAdd(BaseModel):
+    shipment_id: int
+    order_id: int
+    fish_number: int
+    fish_date: str
+    weight: int
+    sack_count: int
+    sending_method: str
+    fish_image_id: str
+
+
+class SCardAdd(BaseModel):
+    article: str
+    image_id: str
+    color: str
+    shop_name: str
+    vendor_internal_article: str
+
+
 class SOrder(SOrderAdd):
+    id: int
+
+
+class SShipment(SShipmentAdd):
+    id: int
+
+
+class SCheque(SChequeAdd):
+    id: int
+
+
+class SFish(SFishAdd):
+    id: int
+
+
+class SCard(SCardAdd):
     id: int
 
 
 class SOrderId(BaseModel):
     ok: bool = True
-    task_id: int
+    order_id: int
+
+
+class SShipmentId(BaseModel):
+    ok: bool = True
+    shipment_id: int
+
+
+class SChequeId(BaseModel):
+    ok: bool = True
+    cheque_id: int
+
+
+class SFishId(BaseModel):
+    ok: bool = True
+    fish_id: int
+
+
+class SCardId(BaseModel):
+    ok: bool = True
+    fish_id: int
