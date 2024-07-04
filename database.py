@@ -6,7 +6,11 @@ import json
 
 engine = create_async_engine(url='sqlite+aiosqlite:///db.sqlite3')
 
+engine_ODDS = create_async_engine(url='sqlite+aiosqlite:///ODDS.sqlite3')
+
 async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+async_session_ODDS = async_sessionmaker(engine_ODDS, expire_on_commit=False)
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -94,12 +98,49 @@ class ProductCard(Base):
     shop_name: Mapped[str] = mapped_column(String(25))
     vendor_internal_article: Mapped[str] = mapped_column(String(50), nullable=True, default='Не заполнено')
 
+class Payment(Base):
+    __tablename__ = 'payments'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column()
+    code: Mapped[str] = mapped_column()
+    amount: Mapped[float] = mapped_column()
+    date: Mapped[str] = mapped_column()
+
+class Income(Base):
+    __tablename__ = 'incomes'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column()
+    code: Mapped[str] = mapped_column()
+    amount: Mapped[float] = mapped_column()
+    date: Mapped[str] = mapped_column()
+
+class Costs(Base):
+    __tablename__ = 'costs'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column()
+    value: Mapped[float] = mapped_column()
+
+class Credits(Base):
+    __tablename__ = 'credits'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    week_number: Mapped[int] = mapped_column()
+    name: Mapped[str] = mapped_column()
+    value: Mapped[float] = mapped_column()
+    date: Mapped[str] = mapped_column()
 
 async def async_main():
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all, tables=[Order.__table__, Shipment.__table__, Cheque.__table__, Fish.__table__, ProductCard.__table__])
 
+    async with engine_ODDS.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all, tables=[Payment.__table__, Income.__table__, Costs.__table__, Credits.__table__])
 
 async def delete_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
