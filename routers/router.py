@@ -1,9 +1,15 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastui import FastUI, AnyComponent, prebuilt_html, components as c
+from fastui.events import GoToEvent, BackEvent
+from fastui.components.display import DisplayMode, DisplayLookup
+from fastui.forms import fastui_form
+from starlette.responses import HTMLResponse
 
 from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository
-from schemas import SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque, SChequeId, SFish, SFishAdd, SFishId
+from schemas.schemas import SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque, \
+    SChequeId, SFish, SFishAdd, SFishId
 
 order_router = APIRouter(
     prefix='/orders',
@@ -60,6 +66,7 @@ async def add_cheque(cheque: Annotated[SChequeAdd, Depends()]) -> SChequeId:
 async def get_cheques() -> list[SCheque]:
     cheques = await ChequeRepository.all_cheques()
     return cheques
+
 
 @fish_router.post('')
 async def add_fish(fish: Annotated[SFishAdd, Depends()]) -> SFishId:
