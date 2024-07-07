@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
-from database import async_session, Order, Shipment, ProductCard, Cheque, Fish
-from schemas import SOrderAdd, SOrder, SOrderId, SCardAdd, SFishAdd, SChequeAdd, SCheque, SCard, SFish, SShipmentAdd, SShipment
+from database import async_session, Order, Shipment, Cheque, Fish
+from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment
 
 
 class OrderRepository:
@@ -9,6 +9,7 @@ class OrderRepository:
     async def add_order(cls, data: SOrderAdd) -> int:
         async with async_session() as session:
             order_dict = data.model_dump()
+            print(order_dict)
             order = Order(**order_dict)
             session.add(order)
             await session.flush()
