@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import String, ForeignKey, Null, Text, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
-from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine, AsyncSession
 import json
 
 engine = create_async_engine(url='sqlite+aiosqlite:///db.sqlite3')
@@ -10,7 +10,7 @@ engine_ODDS = create_async_engine(url='sqlite+aiosqlite:///ODDS.sqlite3')
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
-async_session_ODDS = async_sessionmaker(engine_ODDS, expire_on_commit=False)
+async_session_ODDS = async_sessionmaker(engine_ODDS, expire_on_commit=False, class_=AsyncSession)
 
 
 class Base(AsyncAttrs, DeclarativeBase):
@@ -132,12 +132,26 @@ class Credits(Base):
     value: Mapped[float] = mapped_column()
     date: Mapped[str] = mapped_column()
 
+class PaymentsPurpose(Base):
+    __tablename__ = 'payments_purpose'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    code: Mapped[int] = mapped_column()
+    name: Mapped[str] = mapped_column()
+
+class IncomePurpose(Base):
+    __tablename__ = 'income_purpose'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    code: Mapped[int] = mapped_column()
+    name: Mapped[str] = mapped_column()
+
 async def async_main():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, tables=[Order.__table__, Shipment.__table__, Cheque.__table__, Fish.__table__, ProductCard.__table__])
 
     async with engine_ODDS.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all, tables=[Payment.__table__, Income.__table__, Costs.__table__, Credits.__table__])
+        await connection.run_sync(Base.metadata.create_all, tables=[Payment.__table__, Income.__table__, Credits.__table__])
 
 async def delete_tables():
     async with engine.begin() as conn:

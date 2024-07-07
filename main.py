@@ -6,10 +6,7 @@ from router import order_router, shipment_router, cheque_router, fish_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await delete_tables()
-    print('База очищена')
     await async_main()
-    print('База готова к работе')
     yield
     print('Выключение')
 
@@ -19,3 +16,7 @@ app.include_router(order_router)
 app.include_router(shipment_router)
 app.include_router(cheque_router)
 app.include_router(fish_router)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
