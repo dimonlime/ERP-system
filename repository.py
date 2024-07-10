@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import List
+
 from sqlalchemy import select
 
 from database import async_session, Order, Shipment, Cheque, Fish
@@ -11,6 +14,8 @@ class OrderRepository:
             order_dict = data.model_dump()
             print(order_dict)
             order = Order(**order_dict)
+            order.create_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            order.change_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
             session.add(order)
             await session.flush()
             await session.commit()
@@ -22,9 +27,17 @@ class OrderRepository:
             query = select(Order)
             result = await session.execute(query)
             order_models = result.scalars().all()
-            print(order_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return order_models
+
+    @classmethod
+    async def get_order(cls, order_id) -> SOrder:
+        async with async_session() as session:
+            query = select(Order).where(Order.id == order_id)
+            result = await session.execute(query)
+            order_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return order_model
 
 
 class ShipmentRepository:
@@ -44,9 +57,17 @@ class ShipmentRepository:
             query = select(Shipment)
             result = await session.execute(query)
             shipment_models = result.scalars().all()
-            print(shipment_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return shipment_models
+
+    @classmethod
+    async def get_shipment(cls, shipment_id) -> SShipment:
+        async with async_session() as session:
+            query = select(Shipment).where(Shipment.id == shipment_id)
+            result = await session.execute(query)
+            shipment_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return shipment_model
 
 
 class ChequeRepository:
@@ -66,9 +87,17 @@ class ChequeRepository:
             query = select(Cheque)
             result = await session.execute(query)
             cheque_models = result.scalars().all()
-            print(cheque_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return cheque_models
+
+    @classmethod
+    async def get_cheque(cls, cheque_id) -> SCheque:
+        async with async_session() as session:
+            query = select(Cheque).where(Cheque.id == cheque_id)
+            result = await session.execute(query)
+            cheque_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return cheque_model
 
 
 class FishRepository:
@@ -88,6 +117,14 @@ class FishRepository:
             query = select(Fish)
             result = await session.execute(query)
             fish_models = result.scalars().all()
-            print(fish_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return fish_models
+
+    @classmethod
+    async def get_fish(cls, fish_id) -> SFish:
+        async with async_session() as session:
+            query = select(Fish).where(Fish.id == fish_id)
+            result = await session.execute(query)
+            fish_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return fish_model

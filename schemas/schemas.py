@@ -4,10 +4,10 @@ from pydantic import BaseModel
 
 
 class SOrderAdd(BaseModel):
-    create_date: str
-    change_date: str
+    create_date: Optional[str] = None
+    change_date: Optional[str] = None
     internal_article: str
-    vendor_internal_article: Optional[str] = 'Не заполнено'
+    vendor_internal_article: Optional[str] = '-'
     quantity_s: int
     quantity_m: int
     quantity_l: int
@@ -28,14 +28,14 @@ class SShipmentAdd(BaseModel):
     quantity_l: int
     status: str
     sending_method: str
-    sack_number: str
+    sack_number: Optional[str] = None
     sending_method: str
-    fish: str
-    cheque: str
-    document_1_id: str
-    document_2_id: str
-    image_1_id: str
-    image_2_id: str
+    fish: int
+    cheque: int
+    document_1_id: Optional[str] = None
+    document_2_id: Optional[str] = None
+    image_1_id: Optional[str] = None
+    image_2_id: Optional[str] = None
 
 
 class SChequeAdd(BaseModel):
@@ -45,11 +45,11 @@ class SChequeAdd(BaseModel):
     create_date: str
     shop_name: str
     cheque_number: int
-    vendor_internal_article: str
+    vendor_internal_article: int
     price: int
     cheque_image_id: str
-    cheque_status: str
-    payment_image: str
+    cheque_status: Optional[str] = 'По чеку имеется отсрочка'
+    payment_image: Optional[str] = None
 
 
 class SFishAdd(BaseModel):
