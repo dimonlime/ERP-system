@@ -15,7 +15,7 @@ headers_modulbank = {
 }
 
 params_modulbank = {
-    "from": f"2024-06-01",
+    "from": f"2024-07-01",
     "records": 50
 }
 

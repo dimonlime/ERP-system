@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
-from database import async_session, Order, Shipment, Cheque, Fish
-from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment
+from database import async_session, Order, Shipment, Cheque, Fish, Payment, async_session_ODDS, Income
+from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, SODDSincome, SODDSpayment
 
 
 class OrderRepository:
@@ -91,3 +91,21 @@ class FishRepository:
             print(fish_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return fish_models
+
+class ODDSRepository:
+
+    @classmethod
+    async def all_payments(cls) -> list[SODDSpayment]:
+        async with async_session_ODDS() as session:
+            query = select(Payment)
+            result = await session.execute(query)
+            payments_models = result.scalars().all()
+            return payments_models
+
+    @classmethod
+    async def all_incomes(cls) -> list[SODDSincome]:
+        async with async_session_ODDS() as session:
+            query = select(Income)
+            result = await session.execute(query)
+            incomes_models = result.scalars().all()
+            return incomes_models

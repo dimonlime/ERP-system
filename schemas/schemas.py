@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator, field_validator
 
 
 class SOrderAdd(BaseModel):
@@ -114,3 +114,23 @@ class SFishId(BaseModel):
 class SCardId(BaseModel):
     ok: bool = True
     fish_id: int
+
+class BasePaymentIncome(BaseModel):
+    id: int
+    name: str
+    code: int
+    amount: float
+    date: str
+class SODDSpayment(BasePaymentIncome):
+    pass
+
+class SODDSincome(BasePaymentIncome):
+    pass
+
+class ReportODDSRequest(BaseModel):
+    period: str = Field(
+        ...,
+        pattern=r'^\d{4}-(0?[1-9]|1[0-2])$',
+        title='Период',
+        description="Формат должен быть YYYY-MM, где YYYY - год, а MM - месяц в диапазоне от 01 до 12 или от 1 до 12"
+    )

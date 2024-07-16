@@ -107,6 +107,8 @@ class Payment(Base):
     amount: Mapped[float] = mapped_column()
     date: Mapped[str] = mapped_column()
 
+
+
 class Income(Base):
     __tablename__ = 'incomes'
 
@@ -116,6 +118,8 @@ class Income(Base):
     amount: Mapped[float] = mapped_column()
     date: Mapped[str] = mapped_column()
 
+    def __repr__(self):
+        return f"<Income(name={self.name}, code={self.code}, amount={self.amount}, date={self.date})>"
 class Costs(Base):
     __tablename__ = 'costs'
 
@@ -158,3 +162,6 @@ async def delete_tables():
         await conn.run_sync(Base.metadata.drop_all)
 
 
+async def async_session_ODDS_():
+    async with async_session_ODDS() as session:
+        yield session
