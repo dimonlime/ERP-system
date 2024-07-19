@@ -131,9 +131,9 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.main" />
-      <item itemvalue="Python.parse" />
       <item itemvalue="FastAPI.Unnamed" />
+      <item itemvalue="Python.parse" />
+      <item itemvalue="Python.main" />
     </list>
     <recent_temporary>
       <list>
