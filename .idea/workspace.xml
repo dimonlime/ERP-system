@@ -4,14 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="663d712a-4d6c-4438-b692-bac9c24e2692" name="Changes" comment="create ODDS fastui interface">
+    <list default="true" id="663d712a-4d6c-4438-b692-bac9c24e2692" name="Changes" comment="update requirements.txt">
       <change beforePath="$PROJECT_DIR$/.idea/ERP-system.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ERP-system.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ODDS/parse.py" beforeDir="false" afterPath="$PROJECT_DIR$/ODDS/parse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ODDS/requests_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/ODDS/requests_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routers/router.py" beforeDir="false" afterPath="$PROJECT_DIR$/routers/router.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schemas/schemas.py" beforeDir="false" afterPath="$PROJECT_DIR$/schemas/schemas.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,26 +41,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
-    &quot;FastAPI.Unnamed.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.parse.executor&quot;: &quot;Run&quot;,
-    &quot;Python.requests_api.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;D:/Работа/ODDS PARSE&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultHtmlFileTemplate": "HTML File",
+    "FastAPI.Unnamed.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.parse.executor": "Run",
+    "Python.requests_api.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "last_opened_file_path": "D:/Работа/ERP-system",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="FastAPI.Unnamed">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="ERP-system" />
@@ -176,6 +171,7 @@
       <workItem from="1721285737155" duration="9000" />
       <workItem from="1721314593458" duration="15942000" />
       <workItem from="1721379001834" duration="1637000" />
+      <workItem from="1721411396346" duration="1670000" />
     </task>
     <task id="LOCAL-00001" summary="add database ODDS">
       <option name="closed" value="true" />
@@ -201,7 +197,23 @@
       <option name="project" value="LOCAL" />
       <updated>1721144926087</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="create scheduler api modulbank parse, filter in ODDS interface">
+      <option name="closed" value="true" />
+      <created>1721411609598</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1721411609598</updated>
+    </task>
+    <task id="LOCAL-00005" summary="update requirements.txt">
+      <option name="closed" value="true" />
+      <created>1721411681223</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1721411681223</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -234,7 +246,9 @@
     <MESSAGE value="add database ODDS" />
     <MESSAGE value="parse payments and incomes modulbank api" />
     <MESSAGE value="create ODDS fastui interface" />
-    <option name="LAST_COMMIT_MESSAGE" value="create ODDS fastui interface" />
+    <MESSAGE value="create scheduler api modulbank parse, filter in ODDS interface" />
+    <MESSAGE value="update requirements.txt" />
+    <option name="LAST_COMMIT_MESSAGE" value="update requirements.txt" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
