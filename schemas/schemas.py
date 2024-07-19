@@ -1,5 +1,6 @@
 from typing import Optional
 
+import pydantic
 from pydantic import BaseModel, Field, validator, field_validator
 
 
@@ -126,6 +127,9 @@ class SODDSpayment(BasePaymentIncome):
 
 class SODDSincome(BasePaymentIncome):
     pass
+
+class SODDSFilterForm(pydantic.BaseModel):
+    date: str = Field(json_schema_extra={'search_url': '/odds/search', 'placeholder': 'Фильтрация по периоду...'})
 
 class ReportODDSRequest(BaseModel):
     period: str = Field(

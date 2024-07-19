@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 from datetime import datetime, timedelta
 
@@ -7,8 +8,8 @@ from sqlalchemy.orm import session, Session, sessionmaker
 from sqlalchemy.future import select
 from dateutil.parser import parse as parse_date
 from database import PaymentsPurpose, Payment, IncomePurpose, Income, engine_ODDS, async_session_ODDS
-from requests_api import res_pay
-
+from ODDS.requests_api import request_to_api_modulbank
+from loguru import logger
 
 def is_date_in_current_month(current_date, date_to_check):
     return current_date.year == date_to_check.year and current_date.month == date_to_check.month
@@ -186,11 +187,13 @@ async def add_to_db_payments_incomes(records, model_class, session):
         await sess.commit()
 
 async def initial():
-    response = res_pay
+    logger.info("Парс апи модульбанка")
+    date_now = datetime.now().date()
+    start_date, end_date = get_start_and_end_of_current_month(date_now)
+    response = request_to_api_modulbank(start_date)
     responsePay = response.json()
     async with async_session_ODDS() as session:
         parsed_payments = await parse_payments(responsePay, session)
-        print(parsed_payments)
         parsed_incomes = await parse_incomes(responsePay, session)
         full_payment = await full_amount_payments(parsed_payments, session)
         full_income = await full_amount_incomes(parsed_incomes, session)
@@ -205,5 +208,3 @@ async def initial():
         await add_to_db_payments_incomes(full_income, Income, session)
         await add_to_db_payments_incomes(total_received_income, Income, session)
 
-# Running the initial function using asyncio
-asyncio.run(initial())

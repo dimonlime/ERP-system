@@ -2,3 +2,4 @@ db.sqlite3
 venv
 .env
 ODDS.sqlite3
+ODDS/excel_files

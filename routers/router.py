@@ -1,17 +1,17 @@
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastui import FastUI, AnyComponent, prebuilt_html, components as c
 from fastui.events import GoToEvent, BackEvent
 from fastui.components.display import DisplayMode, DisplayLookup
-from fastui.forms import fastui_form
+from fastui.forms import fastui_form, SelectSearchResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import HTMLResponse, FileResponse
 from fastapi.responses import StreamingResponse
 
 from ODDS.create_excel_ODDS import frame_report_ODDS
-from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository
+from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ODDSRepository
 from schemas.schemas import SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque, \
     SChequeId, SFish, SFishAdd, SFishId, ReportODDSRequest
 from database import async_session_ODDS, async_session_ODDS_
@@ -107,3 +107,15 @@ async def generate_report_ODDS(request: ReportODDSRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@ODDS_router.get('/search', response_model=SelectSearchResponse)
+async def odds_search_view(request: Request, q: str) -> SelectSearchResponse:
+    print("Это q", q)
+    payments = await ODDSRepository.all_payments()
+    dates = []
+    for payment in payments:
+        if payment.date not in dates:
+            dates.append(payment.date)
+    if q:
+        dates = [date for date in dates if q in date]
+    options = [{'value': date, 'label': date} for date in dates]
+    return SelectSearchResponse(options=options)

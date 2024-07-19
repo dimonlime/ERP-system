@@ -1,13 +1,16 @@
+import asyncio
 from pathlib import Path
 
-from fastapi import FastAPI, Depends
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import FastAPI, Depends, Request
 from contextlib import asynccontextmanager
 
 from fastui.components.display import DisplayLookup, DisplayMode
-from fastui.forms import fastui_form
+from fastui.forms import fastui_form, SelectSearchResponse
 from openpyxl.worksheet import page
 from starlette.responses import HTMLResponse, FileResponse
 
+from ODDS.parse import initial
 from database import async_main, delete_tables, async_session_ODDS_
 from routers.router import order_router, shipment_router, cheque_router, fish_router, ODDS_router, generate_report_ODDS
 from typing import Annotated, Sequence, Union
@@ -17,15 +20,19 @@ from fastapi import APIRouter, Depends
 from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ODDSRepository
 from schemas.schemas import (SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque,
                              SChequeId,
-                             SFish, SFishAdd, SFishId, ReportODDSRequest, SODDSpayment, SODDSincome, BasePaymentIncome)
+                             SFish, SFishAdd, SFishId, ReportODDSRequest, SODDSpayment, SODDSincome, BasePaymentIncome,
+                             SODDSFilterForm)
 
 from fastui import AnyComponent, FastUI, prebuilt_html
 from fastui import components as c
 from fastui.events import GoToEvent, PageEvent, BackEvent
-
-
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from loguru import logger
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(job_parse_api_modulbank, 'interval', hours=5)
+    scheduler.start()
     # await delete_tables()
     # print('База очищена')
     #await async_main()
@@ -41,9 +48,16 @@ app.include_router(cheque_router)
 app.include_router(fish_router)
 app.include_router(ODDS_router)
 
+scheduler = AsyncIOScheduler()
+
+async def job_parse_api_modulbank():
+    logger.info("Задача парс апи модульбанка запущена")
+    await initial()
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyComponent]:
@@ -75,8 +89,8 @@ def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyCo
                 ),
                 c.Link(
                     components=[c.Text(text='Отчет ОДДС')],
-                    on_click=GoToEvent(url='/odds'),
-                    active='startswith:/odss',
+                    on_click=GoToEvent(url='/odds/all'),
+                    active='startswith:/odds/all',
                 )
             ],
         ),
@@ -114,6 +128,11 @@ def ODDS_tabs() -> list[AnyComponent]:
         c.LinkList(
             links=[
                 c.Link(
+                    components=[c.Text(text='Общий')],
+                    on_click=GoToEvent(url='/odds/all'),
+                    active='startswith:/odds/all',
+                ),
+                c.Link(
                     components=[c.Text(text='Платежи')],
                     on_click=GoToEvent(url='/odds/payments'),
                     active='startswith:/odds/payments',
@@ -121,7 +140,7 @@ def ODDS_tabs() -> list[AnyComponent]:
                 c.Link(
                     components=[c.Text(text='Поступления')],
                     on_click=GoToEvent(url='/odds/incomes'),
-                    active='startswith:/orders/incomes',
+                    active='startswith:/odds/incomes',
                 ),
 
             ],
@@ -207,12 +226,15 @@ def download_file():
     path = Path(file_path)
     return FileResponse(path, media_type='application/octet-stream', filename=path.name)
 
-@app.get("/api/odds", response_model=FastUI, response_model_exclude_none=True)
-async def odds_payments_and_incomes(page: int = 1) -> list[AnyComponent]:
+
+
+@app.get("/api/odds/all", response_model=FastUI, response_model_exclude_none=True)
+async def odds_payments_and_incomes(page: int = 1, date: str | None = None) -> list[AnyComponent]:
     payments = await ODDSRepository.all_payments()
     incomes = await ODDSRepository.all_incomes()
     payments_and_incomes_full = []
     page_size = 12
+    filter_form_initial = {}
     for income in incomes:
 
         income_object = SODDSincome(id=income.id,
@@ -232,10 +254,22 @@ async def odds_payments_and_incomes(page: int = 1) -> list[AnyComponent]:
                                                   date=payment.date)
                     payments_and_incomes_full.append(payment_object)
 
+    if date:
+        payments_and_incomes_full = [payment for payment in payments_and_incomes_full if payment.date == date]
+        period = payments_and_incomes_full[0].date if payments_and_incomes_full else None
+        filter_form_initial['date'] = {'value': date, 'label': period}
 
 
     return main_page(
         *ODDS_tabs(),
+        c.ModelForm(
+            model=SODDSFilterForm,
+            submit_url='.',
+            initial=filter_form_initial,
+            method='GOTO',
+            submit_on_change=True,
+            display_mode='inline',
+        ),
         c.Table(
             data=payments_and_incomes_full[(page - 1) * page_size: page * page_size],
             data_model=BasePaymentIncome,
@@ -251,11 +285,12 @@ async def odds_payments_and_incomes(page: int = 1) -> list[AnyComponent]:
         title='Отчет ОДДС',
     )
 
-@app.get('api/odds/payments', response_model=FastUI, response_model_exclude_none=True)
-async def odds_payments_view(page: int = 1) -> list[AnyComponent]:
+@app.get('/api/odds/payments', response_model=FastUI, response_model_exclude_none=True)
+async def odds_payments_view(page: int = 1, date: str | None = None) -> list[AnyComponent]:
     payments = await ODDSRepository.all_payments()
     payments_full = []
     page_size = 9
+    filter_form_initial = {}
     for payment in payments:
         payment_obj = SODDSpayment(id=payment.id,
                                    name=payment.name,
@@ -263,7 +298,20 @@ async def odds_payments_view(page: int = 1) -> list[AnyComponent]:
                                    amount=payment.amount,
                                    date=payment.date)
         payments_full.append(payment_obj)
+    if date:
+        payments_full = [payment for payment in payments_full if payment.date == date]
+        period = payments_full[0].date if payments_full else None
+        filter_form_initial['date'] = {'value': date, 'label': period}
     return main_page(
+        *ODDS_tabs(),
+        c.ModelForm(
+            model=SODDSFilterForm,
+            submit_url='.',
+            initial=filter_form_initial,
+            method='GOTO',
+            submit_on_change=True,
+            display_mode='inline',
+        ),
         c.Table(
             data=payments_full[(page - 1) * page_size: page * page_size],
             data_model=SODDSpayment,
@@ -276,13 +324,14 @@ async def odds_payments_view(page: int = 1) -> list[AnyComponent]:
             ],
         ),
         c.Pagination(page=page, page_size=page_size, total=len(payments_full)),
-        title='Отчет ОДДС',
+        title='Платежи',
     )
-@app.get('api/odds/incomes', response_model=FastUI, response_model_exclude_none=True)
-async def odds_incomes_view(page: int = 1) -> list[AnyComponent]:
+@app.get('/api/odds/incomes', response_model=FastUI, response_model_exclude_none=True)
+async def odds_incomes_view(page: int = 1, date: str | None = None) -> list[AnyComponent]:
     incomes = await ODDSRepository.all_incomes()
     incomes_full = []
     page_size = 3
+    filter_form_initial = {}
     for income in incomes:
         income_object = SODDSincome(
             id=income.id,
@@ -292,8 +341,20 @@ async def odds_incomes_view(page: int = 1) -> list[AnyComponent]:
             date=income.date
         )
         incomes_full.append(income_object)
-    print(incomes_full)
+    if date:
+        incomes_full = [income for income in incomes_full if income.date == date]
+        period = incomes_full[0].date if incomes_full else None
+        filter_form_initial['date'] = {'value': date, 'label': period}
     return main_page(
+        *ODDS_tabs(),
+        c.ModelForm(
+            model=SODDSFilterForm,
+            submit_url='.',
+            initial=filter_form_initial,
+            method='GOTO',
+            submit_on_change=True,
+            display_mode='inline',
+        ),
         c.Table(
             data=incomes_full[(page - 1) * page_size: page * page_size],
             data_model=SODDSincome,
