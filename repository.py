@@ -3,19 +3,26 @@ from typing import List
 
 from sqlalchemy import select
 
-from database import async_session, Order, Shipment, Cheque, Fish
-from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment
+from database import async_session, Order, Shipment, Cheque, Fish, ProductCard
+from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, \
+    SOrderAddForm
 
 
 class OrderRepository:
     @classmethod
-    async def add_order(cls, data: SOrderAdd) -> int:
+    async def add_order(cls, data: SOrderAddForm) -> int:
         async with async_session() as session:
             order_dict = data.model_dump()
-            print(order_dict)
+            article = order_dict.get('internal_article').value
+            card = await ProductCardRepository.get_product_card(str(article))
             order = Order(**order_dict)
             order.create_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
             order.change_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            order.order_image = card.image_id
+            order.flag = False
+            order.color = card.color
+            order.shop_name = card.shop_name
+            order.vendor_internal_article = card.vendor_internal_article
             session.add(order)
             await session.flush()
             await session.commit()
@@ -128,3 +135,23 @@ class FishRepository:
             fish_model = result.scalar()
             # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
             return fish_model
+
+
+class ProductCardRepository:
+    @classmethod
+    async def all_cards(cls):
+        async with async_session() as session:
+            query = select(ProductCard)
+            result = await session.execute(query)
+            product_card_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return product_card_models
+
+    @classmethod
+    async def get_product_card(cls, article):
+        async with async_session() as session:
+            query = select(ProductCard).where(ProductCard.article == article)
+            result = await session.execute(query)
+            product_card_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return product_card_model

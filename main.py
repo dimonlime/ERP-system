@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 import base64
@@ -12,10 +14,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository
+from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ProductCardRepository
 from schemas.schemas import (SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque,
                              SChequeId,
-                             SFish, SFishAdd, SFishId)
+                             SFish, SFishAdd, SFishId, SOrderAddForm)
 
 from fastui import AnyComponent, FastUI, prebuilt_html
 from fastui import components as c
@@ -37,6 +39,7 @@ app.include_router(order_router)
 # app.include_router(shipment_router)
 app.include_router(cheque_router)
 app.include_router(fish_router)
+
 
 def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyComponent]:
     return [
@@ -60,11 +63,11 @@ def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyCo
                     on_click=GoToEvent(url='/cheques/fire'),
                     active='startswith:/cheques',
                 ),
-                c.Link(
-                    components=[c.Text(text='Информация по артикулам')],
-                    on_click=GoToEvent(url='/article_info'),
-                    active='startswith:/article_info',
-                ),
+                # c.Link(
+                #     components=[c.Text(text='Информация по артикулам')],
+                #     on_click=GoToEvent(url='/article_info'),
+                #     active='startswith:/article_info',
+                # ),
             ],
         ),
         c.Page(
@@ -110,11 +113,6 @@ def shipment_tabs() -> list[AnyComponent]:
                     components=[c.Text(text='Поставки')],
                     on_click=GoToEvent(url='/shipments/current'),
                     active='startswith:/shipments/current',
-                ),
-                c.Link(
-                    components=[c.Text(text='Добавить поставку')],
-                    on_click=GoToEvent(url='/shipments/add_shipment'),
-                    active='startswith:/shipments/add_shipment',
                 ),
             ],
             mode='tabs',
@@ -212,7 +210,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
             data=orders_full[(page - 1) * page_size: page * page_size],
             data_model=SOrder,
             columns=[
-                DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='./{id}')),
+                DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='/orders/current/{id}')),
                 DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                 DisplayLookup(field='change_date', title='Дата изменения'),
                 DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
@@ -238,17 +236,22 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     order = await OrderRepository.get_order(order_id)
     shipments = await ShipmentRepository.all_shipments()
     shipments_full = []
+    shipment_s = 0
+    shipment_m = 0
+    shipment_l = 0
     page_size = 10
-    # img_path = 'C:\\Users\\samar\\PycharmProjects\\ERP System\\images\\110818415.png'
-    # with open(img_path, 'rb') as image_file:
-    #     encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
-    # image_component = c.Image(
-    #     src=f'data:image/png;base64,{encoded_image}',
-    #     alt='Local Image',
-    #     loading='lazy',
-    #     referrer_policy='no-referrer',
-    #     class_name='border rounded',
-    # )
+    img_path = order.order_image
+    with open(img_path, 'rb') as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    image_component = c.Image(
+        src=f'data:image/png;base64,{encoded_image}',
+        alt='Local Image',
+        loading='lazy',
+        referrer_policy='no-referrer',
+        class_name='border rounded',
+        width=640,
+        height=640,
+    )
     for shipment in shipments:
         if shipment.order_id == order_id:
             shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
@@ -262,6 +265,15 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                                         image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
             shipments_full.append(shipment_object)
 
+    for shipment in shipments:
+        if shipment.order_id == order_id:
+            shipment_s += shipment.quantity_s
+            shipment_m += shipment.quantity_m
+            shipment_l += shipment.quantity_l
+    remain_s = order.quantity_s - shipment_s
+    remain_m = order.quantity_m - shipment_m
+    remain_l = order.quantity_l - shipment_l
+
     order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                           internal_article=order.internal_article,
                           vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
@@ -272,10 +284,11 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     return main_page(
         c.Div(
             components=[
-                c.Heading(text=f'S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}', level=2),
                 c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
-                c.Button(text='Отметить', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
-                c.Button(text='Закрыть заказ', named_style='warning', class_name='+ ms-2', on_click=BackEvent()),
+                c.Heading(text=order.internal_article, level=1),
+                c.Heading(text=f'S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}', level=2),
+                c.Heading(text=f'Ожидается: S: {remain_s} M: {remain_m} L: {remain_l}', level=2),
+                image_component,
                 c.Details(data=order_object, fields=[
                     DisplayLookup(field='id', title='ID'),
                     DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
@@ -297,7 +310,6 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
         c.Div(
             components=[
                 c.Heading(text='Поставки к заказу:'),
-                # image_component,
                 c.Table(
                     data=shipments_full[(page - 1) * page_size: page * page_size],
                     data_model=SShipment,
@@ -317,22 +329,28 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                 c.Pagination(page=page, page_size=page_size, total=len(shipments_full))
             ]
         ),
-        title=order.internal_article,
     )
 
 
 @app.post('/api/order')
-async def create_order(form: Annotated[SOrderAdd, fastui_form(SOrderAdd)]):
+async def create_order(form: Annotated[SOrderAddForm, fastui_form(SOrderAddForm)]):
     await OrderRepository.add_order(form)
-    return [c.FireEvent(event=GoToEvent(url='/api/orders/current'))]
+    return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
+
+
+@app.post('/api/order/mark_order', response_model=FastUI, response_model_exclude_none=True)
+async def create_order():
+    print('z')
+    return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
 
 
 @app.get('/api/orders/add_order', response_model=FastUI, response_model_exclude_none=True)
 async def orders_view() -> list[AnyComponent]:
+    await ProductCardRepository.all_cards()
     return main_page(
         c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
         c.Heading(text='Добавление заказа', level=2),
-        c.ModelForm(model=SOrderAdd, display_mode='page', submit_url='/api/order'),
+        c.ModelForm(model=SOrderAddForm, display_mode='page', submit_url='/api/order'),
     )
 
 
@@ -342,15 +360,17 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
     shipments_full = []
     page_size = 10
     for shipment in shipments:
-        shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                    change_date=shipment.change_date, quantity_s=shipment.quantity_s,
-                                    quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
-                                    status=shipment.status,
-                                    sending_method=shipment.sending_method, sack_number=shipment.sack_number,
-                                    fish=shipment.fish, cheque=shipment.cheque, document_1_id=shipment.document_1_id,
-                                    document_2_id=shipment.document_2_id,
-                                    image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
-        shipments_full.append(shipment_object)
+        order = await OrderRepository.get_order(shipment.order_id)
+        if order.status != 'Заказ готов':
+            shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
+                                        change_date=shipment.change_date, quantity_s=shipment.quantity_s,
+                                        quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
+                                        status=shipment.status,
+                                        sending_method=shipment.sending_method, sack_number=shipment.sack_number,
+                                        fish=shipment.fish, cheque=shipment.cheque, document_1_id=shipment.document_1_id,
+                                        document_2_id=shipment.document_2_id,
+                                        image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
+            shipments_full.append(shipment_object)
     return main_page(
         *shipment_tabs(),
         c.Table(
@@ -383,6 +403,43 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
     fish = await FishRepository.get_fish(shipment.fish)
     page_size = 10
 
+    img_path = order.order_image
+    with open(img_path, 'rb') as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    order_image_component = c.Image(
+        src=f'data:image/png;base64,{encoded_image}',
+        alt='Local Image',
+        loading='lazy',
+        referrer_policy='no-referrer',
+        class_name='border rounded',
+        width=640,
+        height=640,
+    )
+    img_path = cheque.cheque_image_id
+    with open(img_path, 'rb') as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    cheque_image_component = c.Image(
+        src=f'data:image/png;base64,{encoded_image}',
+        alt='Local Image',
+        loading='lazy',
+        referrer_policy='no-referrer',
+        class_name='border rounded',
+        width=640,
+        height=640,
+    )
+    img_path = fish.fish_image_id
+    with open(img_path, 'rb') as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    fish_image_component = c.Image(
+        src=f'data:image/png;base64,{encoded_image}',
+        alt='Local Image',
+        loading='lazy',
+        referrer_policy='no-referrer',
+        class_name='border rounded',
+        width=640,
+        height=640,
+    )
+
     cheque_object = SCheque(id=cheque.id, shipment_id=cheque.shipment_id, order_id=cheque.order_id, date=cheque.date,
                             create_date=cheque.create_date, shop_name=cheque.shop_name,
                             cheque_number=cheque.cheque_number,
@@ -407,11 +464,13 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
     return main_page(
         c.Div(
             components=[
-                c.Heading(text=f'S: {shipment.quantity_s} M: {shipment.quantity_m} L: {shipment.quantity_l}', level=2),
                 c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
+                c.Heading(text='Поставка', level=1),
+                c.Heading(text=f'S: {shipment.quantity_s} M: {shipment.quantity_m} L: {shipment.quantity_l}', level=2),
                 c.Details(data=shipment_object, fields=[
                     # DisplayLookup(field='id', title='ID'),
-                    DisplayLookup(field='order_id', title='ID заказа', on_click=GoToEvent(url='/orders/current/{order_id}')),
+                    DisplayLookup(field='order_id', title='ID заказа',
+                                  on_click=GoToEvent(url='/orders/current/{order_id}')),
                     DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                     DisplayLookup(field='change_date', title='Дата изменения'),
                     DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
@@ -452,16 +511,9 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
                 ]),
             ]
         ),
-        title='Поставка',
-    )
-
-
-@app.get('/api/shipments/add_shipment', response_model=FastUI, response_model_exclude_none=True)
-async def orders_view() -> list[AnyComponent]:
-    return main_page(
-        c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
-        c.Heading(text='Добавление заказа', level=2),
-        c.ModelForm(model=SOrderAdd, display_mode='page', submit_url='/api/order'),
+        order_image_component,
+        cheque_image_component,
+        fish_image_component,
     )
 
 
@@ -523,7 +575,7 @@ async def delay_cheques(page: int = 1) -> list[AnyComponent]:
             data=cheques_full[(page - 1) * page_size: page * page_size],
             data_model=SCheque,
             columns=[
-                DisplayLookup(field='id', title='ID'),
+                DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='./{id}')),
                 DisplayLookup(field='date', title='Дата чека'),
                 DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                 DisplayLookup(field='shop_name', title='Название магазина'),
@@ -590,9 +642,53 @@ async def incomes_view(cheque_id: int, page: int = 1) -> list[AnyComponent]:
     return main_page(
         c.Div(
             components=[
-                c.Heading(text='Чек:'),
                 c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
-                c.Button(text='Оплатить', named_style='warning', class_name='+ ms-2', on_click=BackEvent()),
+                c.Heading(text='Чек:'),
+                c.Details(data=cheque_object, fields=[
+                    # DisplayLookup(field='id', title='ID'),
+                    DisplayLookup(field='date', title='Дата чека'),
+                    DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
+                    DisplayLookup(field='shop_name', title='Название магазина'),
+                    DisplayLookup(field='cheque_number', title='Номер чека', mode=DisplayMode.markdown),
+                    DisplayLookup(field='vendor_internal_article', title='Внутренний артикул поставщика',
+                                  mode=DisplayMode.markdown),
+                    DisplayLookup(field='price', title='Цена', mode=DisplayMode.markdown),
+                    DisplayLookup(field='cheque_status', title='Статус чека', mode=DisplayMode.markdown),
+                ]),
+            ]
+        ),
+    )
+
+
+@app.get('/api/cheques/delay/{cheque_id}', response_model=FastUI, response_model_exclude_none=True)
+async def incomes_view(cheque_id: int, page: int = 1) -> list[AnyComponent]:
+    cheque = await ChequeRepository.get_cheque(cheque_id)
+    page_size = 10
+
+    img_path = cheque.cheque_image_id
+    with open(img_path, 'rb') as image_file:
+        encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    image_component = c.Image(
+        src=f'data:image/png;base64,{encoded_image}',
+        alt='Local Image',
+        loading='lazy',
+        referrer_policy='no-referrer',
+        class_name='border rounded',
+        width=640,
+        height=640,
+    )
+    cheque_object = SCheque(id=cheque.id, shipment_id=cheque.shipment_id, order_id=cheque.order_id, date=cheque.date,
+                            create_date=cheque.create_date, shop_name=cheque.shop_name,
+                            cheque_number=cheque.cheque_number,
+                            vendor_internal_article=cheque.vendor_internal_article, price=cheque.price,
+                            cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
+                            payment_image=cheque.payment_image)
+    return main_page(
+        c.Div(
+            components=[
+                c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
+                c.Heading(text='Чек:'),
+                image_component,
                 c.Details(data=cheque_object, fields=[
                     # DisplayLookup(field='id', title='ID'),
                     DisplayLookup(field='date', title='Дата чека'),
@@ -610,32 +706,120 @@ async def incomes_view(cheque_id: int, page: int = 1) -> list[AnyComponent]:
 
 
 @app.get('/api/article_info', response_model=FastUI, response_model_exclude_none=True)
-def articles_view() -> list[AnyComponent]:
+async def articles_view(page: int = 1) -> list[AnyComponent]:
+    cheques = await ChequeRepository.all_cheques()
+    cheques_full = []
+    page_size = 10
+    for cheque in cheques:
+        if cheque.cheque_status == 'Чек оплачен':
+            cheque_object = SCheque(id=cheque.id, shipment_id=cheque.shipment_id, order_id=cheque.order_id,
+                                    date=cheque.date,
+                                    create_date=cheque.create_date, shop_name=cheque.shop_name,
+                                    cheque_number=cheque.cheque_number,
+                                    vendor_internal_article=cheque.vendor_internal_article, price=cheque.price,
+                                    cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
+                                    payment_image=cheque.payment_image)
+            cheques_full.append(cheque_object)
     return main_page(
-        c.Div(
-            components=[
-                c.Heading(text='Модуль в разработке...', level=2),
+        *cheque_tabs(),
+        c.Table(
+            data=cheques_full[(page - 1) * page_size: page * page_size],
+            data_model=SCheque,
+            columns=[
+                DisplayLookup(field='id', title='ID'),
+                DisplayLookup(field='date', title='Дата чека'),
+                DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
+                DisplayLookup(field='shop_name', title='Название магазина'),
+                DisplayLookup(field='cheque_number', title='Номер чека', mode=DisplayMode.markdown),
+                DisplayLookup(field='vendor_internal_article', title='Внутренний артикул поставщика',
+                              mode=DisplayMode.markdown),
+                DisplayLookup(field='price', title='Цена', mode=DisplayMode.markdown),
+                DisplayLookup(field='cheque_status', title='Статус чека', mode=DisplayMode.markdown),
             ],
-            class_name='card-container',
         ),
-        title='Артикулы',
+        c.Pagination(page=page, page_size=page_size, total=len(cheques_full)),
+        title='Список артикулов находящихся в пути',
     )
 
 
 @app.get('/api/', response_model=FastUI, response_model_exclude_none=True)
-def components_view() -> list[AnyComponent]:
+async def components_view(page: int = 1) -> list[AnyComponent]:
+    orders = await OrderRepository.all_orders()
+    orders_full = []
+    page_size = 5
+    today_date = datetime.now()
+    for order in orders:
+        if order.status == 'Заказ не готов':
+            order_date = datetime.strptime(order.create_date, '%d-%m-%Y %H:%M:%S')
+            week = today_date - timedelta(days=7)
+            if week <= order_date <= today_date:
+                order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
+                                      internal_article=order.internal_article,
+                                      vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
+                                      quantity_m=order.quantity_m, quantity_l=order.quantity_l,
+                                      color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
+                                      order_image=order.order_image, status=order.status,
+                                      flag=order.flag)
+                orders_full.append(order_object)
+    cheques = await ChequeRepository.all_cheques()
+    cheques_full = []
+    for cheque in cheques:
+        if cheque.cheque_status == 'Чек не оплачен по истечению 2-ух недель':
+            cheque_object = SCheque(id=cheque.id, shipment_id=cheque.shipment_id, order_id=cheque.order_id,
+                                    date=cheque.date,
+                                    create_date=cheque.create_date, shop_name=cheque.shop_name,
+                                    cheque_number=cheque.cheque_number,
+                                    vendor_internal_article=cheque.vendor_internal_article, price=cheque.price,
+                                    cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
+                                    payment_image=cheque.payment_image)
+            cheques_full.append(cheque_object)
     return main_page(
         c.Div(
             components=[
                 c.Heading(text='Список последних заказов', level=2),
-                c.Text(text='В разработке...'),
+                c.Table(
+                    data=orders_full[(page - 1) * page_size: page * page_size],
+                    data_model=SOrder,
+                    columns=[
+                        DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='orders/current/{id}')),
+                        DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
+                        DisplayLookup(field='change_date', title='Дата изменения'),
+                        DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
+                        DisplayLookup(field='vendor_internal_article', title='Артикул поставщика',
+                                      mode=DisplayMode.markdown),
+                        DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
+                        DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
+                        DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
+                        DisplayLookup(field='color', title='Цвет', mode=DisplayMode.markdown),
+                        DisplayLookup(field='shop_name', title='Название магазина', mode=DisplayMode.markdown),
+                        DisplayLookup(field='sending_method', title='Метод отправки', mode=DisplayMode.markdown),
+                        DisplayLookup(field='status', title='Статус'),
+                        DisplayLookup(field='flag', title='Приоритет'),
+                    ],
+                ),
+                c.Pagination(page=page, page_size=page_size, total=len(orders_full)),
             ],
             class_name='card-container',
         ),
         c.Div(
             components=[
                 c.Heading(text='Список горящих чеков', level=2),
-                c.Paragraph(text='В разработке...'),
+                c.Table(
+                    data=cheques_full[(page - 1) * page_size: page * page_size],
+                    data_model=SCheque,
+                    columns=[
+                        DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='cheques/fire/{id}')),
+                        DisplayLookup(field='date', title='Дата чека'),
+                        DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
+                        DisplayLookup(field='shop_name', title='Название магазина'),
+                        DisplayLookup(field='cheque_number', title='Номер чека', mode=DisplayMode.markdown),
+                        DisplayLookup(field='vendor_internal_article', title='Внутренний артикул поставщика',
+                                      mode=DisplayMode.markdown),
+                        DisplayLookup(field='price', title='Цена', mode=DisplayMode.markdown),
+                        DisplayLookup(field='cheque_status', title='Статус чека', mode=DisplayMode.markdown),
+                    ],
+                ),
+                c.Pagination(page=page, page_size=page_size, total=len(cheques_full)),
             ],
             class_name='border-top mt-3 pt-1',
         ),

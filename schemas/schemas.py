@@ -1,6 +1,7 @@
+import enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SOrderAdd(BaseModel):
@@ -17,6 +18,30 @@ class SOrderAdd(BaseModel):
     order_image: Optional[str] = None
     status: Optional[str] = 'Заказ не готов'
     flag: Optional[bool] = False
+
+
+class ToolEnum(str, enum.Enum):
+    article1 = '51920232'
+    article2 = '51920233'
+    article3 = '51920231'
+    article4 = 'TR792KTD1PL2000'
+    article5 = 'TR792KTD1PB1700'
+    article6 = 'TR792FKD1CPB12226'
+    article7 = 'TR792KTD1PB1603'
+
+
+class SendingMethod(str, enum.Enum):
+    T1 = 'T1'
+    T2 = 'T2'
+    Avia = 'Avia'
+
+
+class SOrderAddForm(BaseModel):
+    internal_article: ToolEnum = Field(title='Выберите артикул')
+    quantity_s: int = Field(title='Кол-во S')
+    quantity_m: int = Field(title='Кол-во M')
+    quantity_l: int = Field(title='Кол-во L')
+    sending_method: SendingMethod = Field(title='Выберите метод отправки')
 
 
 class SShipmentAdd(BaseModel):
@@ -69,6 +94,13 @@ class SCardAdd(BaseModel):
     color: str
     shop_name: str
     vendor_internal_article: str
+
+
+class ArticleInfo(BaseModel):
+    article: str
+    quantity_s: int
+    quantity_m: int
+    quantity_l: int
 
 
 class SOrder(SOrderAdd):
