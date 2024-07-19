@@ -1,16 +1,30 @@
+from datetime import datetime
+from typing import List
+
 from sqlalchemy import select
 
 from database import async_session, Order, Shipment, Cheque, Fish, Payment, async_session_ODDS, Income
 from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, SODDSincome, SODDSpayment
+from database import async_session, Order, Shipment, Cheque, Fish, ProductCard, Payment, async_session_ODDS, Income
+from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, \
+    SOrderAddForm, SODDSincome, SODDSpayment
 
 
 class OrderRepository:
     @classmethod
-    async def add_order(cls, data: SOrderAdd) -> int:
+    async def add_order(cls, data: SOrderAddForm) -> int:
         async with async_session() as session:
             order_dict = data.model_dump()
-            print(order_dict)
+            article = order_dict.get('internal_article').value
+            card = await ProductCardRepository.get_product_card(str(article))
             order = Order(**order_dict)
+            order.create_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            order.change_date = datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+            order.order_image = card.image_id
+            order.flag = False
+            order.color = card.color
+            order.shop_name = card.shop_name
+            order.vendor_internal_article = card.vendor_internal_article
             session.add(order)
             await session.flush()
             await session.commit()
@@ -22,9 +36,17 @@ class OrderRepository:
             query = select(Order)
             result = await session.execute(query)
             order_models = result.scalars().all()
-            print(order_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return order_models
+
+    @classmethod
+    async def get_order(cls, order_id) -> SOrder:
+        async with async_session() as session:
+            query = select(Order).where(Order.id == order_id)
+            result = await session.execute(query)
+            order_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return order_model
 
 
 class ShipmentRepository:
@@ -44,9 +66,17 @@ class ShipmentRepository:
             query = select(Shipment)
             result = await session.execute(query)
             shipment_models = result.scalars().all()
-            print(shipment_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return shipment_models
+
+    @classmethod
+    async def get_shipment(cls, shipment_id) -> SShipment:
+        async with async_session() as session:
+            query = select(Shipment).where(Shipment.id == shipment_id)
+            result = await session.execute(query)
+            shipment_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return shipment_model
 
 
 class ChequeRepository:
@@ -66,9 +96,17 @@ class ChequeRepository:
             query = select(Cheque)
             result = await session.execute(query)
             cheque_models = result.scalars().all()
-            print(cheque_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return cheque_models
+
+    @classmethod
+    async def get_cheque(cls, cheque_id) -> SCheque:
+        async with async_session() as session:
+            query = select(Cheque).where(Cheque.id == cheque_id)
+            result = await session.execute(query)
+            cheque_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return cheque_model
 
 
 class FishRepository:
@@ -88,9 +126,37 @@ class FishRepository:
             query = select(Fish)
             result = await session.execute(query)
             fish_models = result.scalars().all()
-            print(fish_models)
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return fish_models
+
+    @classmethod
+    async def get_fish(cls, fish_id) -> SFish:
+        async with async_session() as session:
+            query = select(Fish).where(Fish.id == fish_id)
+            result = await session.execute(query)
+            fish_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return fish_model
+
+
+class ProductCardRepository:
+    @classmethod
+    async def all_cards(cls):
+        async with async_session() as session:
+            query = select(ProductCard)
+            result = await session.execute(query)
+            product_card_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return product_card_models
+
+    @classmethod
+    async def get_product_card(cls, article):
+        async with async_session() as session:
+            query = select(ProductCard).where(ProductCard.article == article)
+            result = await session.execute(query)
+            product_card_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return product_card_model
 
 class ODDSRepository:
 

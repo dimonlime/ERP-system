@@ -4,7 +4,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine, AsyncSession
 import json
 
-engine = create_async_engine(url='sqlite+aiosqlite:///db.sqlite3')
+engine = create_async_engine(url='sqlite+aiosqlite:////Users/samar/PycharmProjects/Nadziratel_Bot/db.sqlite3')
 
 engine_ODDS = create_async_engine(url='sqlite+aiosqlite:///ODDS.sqlite3')
 

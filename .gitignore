@@ -3,3 +3,6 @@ venv
 .env
 ODDS.sqlite3
 ODDS/excel_files
+.idea
+__pycache__
+images

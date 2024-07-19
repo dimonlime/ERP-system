@@ -16,13 +16,10 @@ from schemas.schemas import SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd
     SChequeId, SFish, SFishAdd, SFishId, ReportODDSRequest
 from database import async_session_ODDS, async_session_ODDS_
 
-order_router = APIRouter(
-    prefix='/orders',
-    tags=['Заказы'],
-)
+order_router = APIRouter()
 
 shipment_router = APIRouter(
-    prefix='/shipments',
+    prefix='/shipment',
     tags=['Поставки'],
 )
 
@@ -43,13 +40,13 @@ ODDS_router = APIRouter(
 
 
 
-@order_router.post('')
-async def add_order(order: Annotated[SOrderAdd, Depends()]) -> SOrderId:
+@order_router.post('/orders/add')
+async def add_order(order: Annotated[SOrderAdd, fastui_form(SOrderAdd)]):
     order_id = await OrderRepository.add_order(order)
     return {'ok': True, 'order_id': order_id}
 
 
-@order_router.get('')
+@order_router.get('orders/get')
 async def get_orders() -> list[SOrder]:
     orders = await OrderRepository.all_orders()
     return orders

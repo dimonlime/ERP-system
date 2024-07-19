@@ -1,3 +1,4 @@
+import enum
 from typing import Optional
 
 import pydantic
@@ -5,10 +6,10 @@ from pydantic import BaseModel, Field, validator, field_validator
 
 
 class SOrderAdd(BaseModel):
-    create_date: str
-    change_date: str
+    create_date: Optional[str] = None
+    change_date: Optional[str] = None
     internal_article: str
-    vendor_internal_article: Optional[str] = 'Не заполнено'
+    vendor_internal_article: Optional[str] = '-'
     quantity_s: int
     quantity_m: int
     quantity_l: int
@@ -20,6 +21,30 @@ class SOrderAdd(BaseModel):
     flag: Optional[bool] = False
 
 
+class ToolEnum(str, enum.Enum):
+    article1 = '51920232'
+    article2 = '51920233'
+    article3 = '51920231'
+    article4 = 'TR792KTD1PL2000'
+    article5 = 'TR792KTD1PB1700'
+    article6 = 'TR792FKD1CPB12226'
+    article7 = 'TR792KTD1PB1603'
+
+
+class SendingMethod(str, enum.Enum):
+    T1 = 'T1'
+    T2 = 'T2'
+    Avia = 'Avia'
+
+
+class SOrderAddForm(BaseModel):
+    internal_article: ToolEnum = Field(title='Выберите артикул')
+    quantity_s: int = Field(title='Кол-во S')
+    quantity_m: int = Field(title='Кол-во M')
+    quantity_l: int = Field(title='Кол-во L')
+    sending_method: SendingMethod = Field(title='Выберите метод отправки')
+
+
 class SShipmentAdd(BaseModel):
     order_id: int
     create_date: str
@@ -29,14 +54,14 @@ class SShipmentAdd(BaseModel):
     quantity_l: int
     status: str
     sending_method: str
-    sack_number: str
+    sack_number: Optional[str] = None
     sending_method: str
-    fish: str
-    cheque: str
-    document_1_id: str
-    document_2_id: str
-    image_1_id: str
-    image_2_id: str
+    fish: int
+    cheque: int
+    document_1_id: Optional[str] = None
+    document_2_id: Optional[str] = None
+    image_1_id: Optional[str] = None
+    image_2_id: Optional[str] = None
 
 
 class SChequeAdd(BaseModel):
@@ -46,11 +71,11 @@ class SChequeAdd(BaseModel):
     create_date: str
     shop_name: str
     cheque_number: int
-    vendor_internal_article: str
+    vendor_internal_article: int
     price: int
     cheque_image_id: str
-    cheque_status: str
-    payment_image: str
+    cheque_status: Optional[str] = 'По чеку имеется отсрочка'
+    payment_image: Optional[str] = None
 
 
 class SFishAdd(BaseModel):
@@ -70,6 +95,13 @@ class SCardAdd(BaseModel):
     color: str
     shop_name: str
     vendor_internal_article: str
+
+
+class ArticleInfo(BaseModel):
+    article: str
+    quantity_s: int
+    quantity_m: int
+    quantity_l: int
 
 
 class SOrder(SOrderAdd):
