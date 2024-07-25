@@ -162,6 +162,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
                                   order_image=order.order_image, status=order.status,
                                   flag=order.flag)
             orders_full.append(order_object)
+    orders_full.reverse()
     return main_page(
         *order_tabs(),
         c.Table(
@@ -204,6 +205,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
                                   order_image=order.order_image, status=order.status,
                                   flag=order.flag)
             orders_full.append(order_object)
+    orders_full.reverse()
     return main_page(
         *order_tabs(),
         c.Table(
@@ -264,7 +266,7 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                                         document_2_id=shipment.document_2_id,
                                         image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
             shipments_full.append(shipment_object)
-
+    shipments_full.reverse()
     for shipment in shipments:
         if shipment.order_id == order_id:
             shipment_s += shipment.quantity_s
@@ -371,6 +373,7 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
                                         document_2_id=shipment.document_2_id,
                                         image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
             shipments_full.append(shipment_object)
+    shipments_full.reverse()
     return main_page(
         *shipment_tabs(),
         c.Table(
@@ -532,6 +535,7 @@ async def fire_cheques(page: int = 1) -> list[AnyComponent]:
                                     cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
                                     payment_image=cheque.payment_image)
             cheques_full.append(cheque_object)
+    cheques_full.reverse()
     return main_page(
         *cheque_tabs(),
         c.Table(
@@ -569,6 +573,7 @@ async def delay_cheques(page: int = 1) -> list[AnyComponent]:
                                     cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
                                     payment_image=cheque.payment_image)
             cheques_full.append(cheque_object)
+    cheques_full.reverse()
     return main_page(
         *cheque_tabs(),
         c.Table(
@@ -606,6 +611,7 @@ async def archive_cheques(page: int = 1) -> list[AnyComponent]:
                                     cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
                                     payment_image=cheque.payment_image)
             cheques_full.append(cheque_object)
+    cheques_full.reverse()
     return main_page(
         *cheque_tabs(),
         c.Table(
@@ -761,6 +767,7 @@ async def components_view(page: int = 1) -> list[AnyComponent]:
                                       order_image=order.order_image, status=order.status,
                                       flag=order.flag)
                 orders_full.append(order_object)
+    orders_full.reverse()
     cheques = await ChequeRepository.all_cheques()
     cheques_full = []
     for cheque in cheques:
@@ -773,6 +780,7 @@ async def components_view(page: int = 1) -> list[AnyComponent]:
                                     cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
                                     payment_image=cheque.payment_image)
             cheques_full.append(cheque_object)
+    cheques_full.reverse()
     return main_page(
         c.Div(
             components=[
