@@ -9,6 +9,7 @@ class SOrderAdd(BaseModel):
     change_date: Optional[str] = None
     internal_article: str
     vendor_internal_article: Optional[str] = '-'
+    quantity_xs: int
     quantity_s: int
     quantity_m: int
     quantity_l: int
@@ -38,6 +39,7 @@ class SendingMethod(str, enum.Enum):
 
 class SOrderAddForm(BaseModel):
     internal_article: ToolEnum = Field(title='Выберите артикул')
+    quantity_xs: int
     quantity_s: int = Field(title='Кол-во S')
     quantity_m: int = Field(title='Кол-во M')
     quantity_l: int = Field(title='Кол-во L')
@@ -48,6 +50,7 @@ class SShipmentAdd(BaseModel):
     order_id: int
     create_date: str
     change_date: str
+    quantity_xs: int
     quantity_s: int
     quantity_m: int
     quantity_l: int
@@ -98,6 +101,7 @@ class SCardAdd(BaseModel):
 
 class ArticleInfo(BaseModel):
     article: str
+    quantity_xs: int
     quantity_s: int
     quantity_m: int
     quantity_l: int

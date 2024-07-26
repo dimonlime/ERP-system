@@ -156,7 +156,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
         if order.status == 'Заказ не готов':
             order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                   internal_article=order.internal_article,
-                                  vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
+                                  vendor_internal_article=order.vendor_internal_article,quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
                                   quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                   color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                   order_image=order.order_image, status=order.status,
@@ -175,6 +175,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
                 DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
                 DisplayLookup(field='vendor_internal_article', title='Артикул поставщика',
                               mode=DisplayMode.markdown),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -199,7 +200,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
         if order.status == 'Заказ готов':
             order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                   internal_article=order.internal_article,
-                                  vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
+                                  vendor_internal_article=order.vendor_internal_article,quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
                                   quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                   color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                   order_image=order.order_image, status=order.status,
@@ -218,6 +219,7 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
                 DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
                 DisplayLookup(field='vendor_internal_article', title='Артикул поставщика',
                               mode=DisplayMode.markdown),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -238,6 +240,7 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     order = await OrderRepository.get_order(order_id)
     shipments = await ShipmentRepository.all_shipments()
     shipments_full = []
+    shipment_xs = 0
     shipment_s = 0
     shipment_m = 0
     shipment_l = 0
@@ -257,7 +260,7 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     for shipment in shipments:
         if shipment.order_id == order_id:
             shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                        change_date=shipment.change_date, quantity_s=shipment.quantity_s,
+                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
                                         quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                         status=shipment.status,
                                         sending_method=shipment.sending_method, sack_number=shipment.sack_number,
@@ -269,16 +272,18 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     shipments_full.reverse()
     for shipment in shipments:
         if shipment.order_id == order_id:
+            shipment_xs += shipment.quantity_xs
             shipment_s += shipment.quantity_s
             shipment_m += shipment.quantity_m
             shipment_l += shipment.quantity_l
+    remain_xs = order.quantity_xs - shipment_xs
     remain_s = order.quantity_s - shipment_s
     remain_m = order.quantity_m - shipment_m
     remain_l = order.quantity_l - shipment_l
 
     order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                           internal_article=order.internal_article,
-                          vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
+                          vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
                           quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                           color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                           order_image=order.order_image, status=order.status,
@@ -288,8 +293,8 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
             components=[
                 c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
                 c.Heading(text=order.internal_article, level=1),
-                c.Heading(text=f'S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}', level=2),
-                c.Heading(text=f'Ожидается: S: {remain_s} M: {remain_m} L: {remain_l}', level=2),
+                c.Heading(text=f'XS: {order.quantity_xs} S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}', level=2),
+                c.Heading(text=f'Ожидается: XS: {remain_xs} S: {remain_s} M: {remain_m} L: {remain_l}', level=2),
                 image_component,
                 c.Details(data=order_object, fields=[
                     DisplayLookup(field='id', title='ID'),
@@ -298,6 +303,7 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                     DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
                     DisplayLookup(field='vendor_internal_article', title='Артикул поставщика',
                                   mode=DisplayMode.markdown),
+                    DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -319,6 +325,7 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                         DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='/shipments/current/{id}')),
                         DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                         DisplayLookup(field='change_date', title='Дата изменения'),
+                        DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -365,7 +372,7 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
         order = await OrderRepository.get_order(shipment.order_id)
         if order.status != 'Заказ готов':
             shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                        change_date=shipment.change_date, quantity_s=shipment.quantity_s,
+                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
                                         quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                         status=shipment.status,
                                         sending_method=shipment.sending_method, sack_number=shipment.sack_number,
@@ -384,6 +391,7 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
                 DisplayLookup(field='order_id', title='ID заказа'),
                 DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                 DisplayLookup(field='change_date', title='Дата изменения'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                 DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -456,7 +464,7 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
                         fish_image_id=fish.fish_image_id)
 
     shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                change_date=shipment.change_date, quantity_s=shipment.quantity_s,
+                                change_date=shipment.change_date,quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
                                 quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                 status=shipment.status,
                                 sending_method=shipment.sending_method, sack_number=shipment.sack_number,
@@ -476,6 +484,7 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
                                   on_click=GoToEvent(url='/orders/current/{order_id}')),
                     DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
                     DisplayLookup(field='change_date', title='Дата изменения'),
+                    DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                     DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
@@ -761,7 +770,7 @@ async def components_view(page: int = 1) -> list[AnyComponent]:
             if week <= order_date <= today_date:
                 order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                       internal_article=order.internal_article,
-                                      vendor_internal_article=order.vendor_internal_article, quantity_s=order.quantity_s,
+                                      vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
                                       quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                       color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                       order_image=order.order_image, status=order.status,
@@ -795,6 +804,7 @@ async def components_view(page: int = 1) -> list[AnyComponent]:
                         DisplayLookup(field='internal_article', title='Внутренний артикул', mode=DisplayMode.markdown),
                         DisplayLookup(field='vendor_internal_article', title='Артикул поставщика',
                                       mode=DisplayMode.markdown),
+                        DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
