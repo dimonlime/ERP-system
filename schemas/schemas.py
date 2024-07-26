@@ -163,6 +163,10 @@ class SODDSincome(BasePaymentIncome):
 class SODDSFilterForm(pydantic.BaseModel):
     date: str = Field(json_schema_extra={'search_url': '/odds/search', 'placeholder': 'Фильтрация по периоду...'})
 
+class SODDScosts(BaseModel):
+    name: str
+    value: float
+
 class ReportODDSRequest(BaseModel):
     period: str = Field(
         ...,

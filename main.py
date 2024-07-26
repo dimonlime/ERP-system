@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from functools import cache
 
 from fastapi import FastAPI, Depends
 import asyncio
@@ -10,9 +11,11 @@ import base64
 
 from fastui.components.display import DisplayLookup, DisplayMode
 from fastui.forms import fastui_form, SelectSearchResponse
+from pydantic import TypeAdapter
 from starlette.responses import HTMLResponse, FileResponse
 
 from ODDS.parse import initial
+from ODDS.utils import read_json
 from database import async_main, delete_tables, async_session_ODDS_
 from routers.router import order_router, shipment_router, cheque_router, fish_router, ODDS_router, generate_report_ODDS
 from typing import Annotated, Sequence, Union
@@ -25,7 +28,7 @@ from schemas.schemas import (SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAd
                              SChequeId,
                              SFish, SFishAdd, SFishId, ReportODDSRequest, SODDSpayment, SODDSincome, BasePaymentIncome,
                              SODDSFilterForm,
-                             SFish, SFishAdd, SFishId, SOrderAddForm)
+                             SFish, SFishAdd, SFishId, SOrderAddForm, SODDScosts)
 
 from fastui import AnyComponent, FastUI, prebuilt_html
 from fastui import components as c
@@ -37,8 +40,8 @@ async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
     scheduler.add_job(job_parse_api_modulbank, 'interval', hours=5)
     scheduler.start()
-    # await delete_tables()
-    # print('База очищена')
+    #await delete_tables()
+    #print('База очищена')
     #await async_main()
     #print('База готова к работе')
     yield
@@ -152,6 +155,11 @@ def ODDS_tabs() -> list[AnyComponent]:
                     on_click=GoToEvent(url='/odds/incomes'),
                     active='startswith:/odds/incomes',
                 ),
+                c.Link(
+                    components=[c.Text(text='Запланированные платежи на неделю')],
+                    on_click=GoToEvent(url='/odds/costs_week'),
+                    active='startswith:/odds/costs_week',
+                )
 
             ],
             mode='tabs',
@@ -242,6 +250,12 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
         title='Текущие заказы',
     )
 
+@cache
+def payments_week_list():
+    payments_adapter = TypeAdapter(list[SODDScosts])
+    payments_file = Path('ODDS/json_file/payments.json')
+    payments = payments_adapter.validate_json(payments_file.read_bytes())
+    return payments
 @app.post("/api/odds_report")
 async def odds_report(form: Annotated[ReportODDSRequest, fastui_form(ReportODDSRequest)]):
     print(f"{form=}")
@@ -255,7 +269,22 @@ def download_file():
     path = Path(file_path)
     return FileResponse(path, media_type='application/octet-stream', filename=path.name)
 
-
+@app.get("/api/odds/costs_week", response_model=FastUI, response_model_exclude_none=True)
+async def odds_costs_week(page: int = 1) -> list[AnyComponent]:
+    payments = payments_week_list()
+    page_size = 2
+    return main_page(
+        *ODDS_tabs(),
+        c.Table(
+            data=payments[(page - 1) * page_size : page * page_size],
+            data_model=SODDScosts,
+            columns=[
+                DisplayLookup(field='name', title='Название платежа', mode=DisplayMode.markdown),
+                DisplayLookup(field='value', title='Сумма', mode=DisplayMode.markdown),
+            ],
+        ),
+        title='Запланированные платежи на неделю'
+    )
 
 @app.get("/api/odds/all", response_model=FastUI, response_model_exclude_none=True)
 async def odds_payments_and_incomes(page: int = 1, date: str | None = None) -> list[AnyComponent]:

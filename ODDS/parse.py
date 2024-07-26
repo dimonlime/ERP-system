@@ -7,7 +7,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.orm import session, Session, sessionmaker
 from sqlalchemy.future import select
 from dateutil.parser import parse as parse_date
-from database import PaymentsPurpose, Payment, IncomePurpose, Income, engine_ODDS, async_session_ODDS
+
+from ODDS.utils import control_system_departure, write_json
+from database import PaymentsPurpose, Payment, IncomePurpose, Income, engine_ODDS, async_session_ODDS, Costs
 from ODDS.requests_api import request_to_api_modulbank
 from loguru import logger
 
@@ -186,6 +188,39 @@ async def add_to_db_payments_incomes(records, model_class, session):
 
         await sess.commit()
 
+
+async def get_departure_full(departure_with_sizes):
+    departure_full = []
+    count_departure_full = 0
+    for item in departure_with_sizes:
+        article = item['article']
+        count_departure = item['S'] + item['M'] + item['L']
+        count_departure_full += count_departure
+        departure_full.append({"article": article, "count_departure": count_departure})
+    return departure_full, count_departure_full
+
+async def get_pay_logist_and_fullfilment(count_departure, session):
+    payments = []
+    async with session as sess:
+        result = await sess.execute(select(Costs))
+        costs = result.scalars().all()
+    fullfilment_cost = 0
+    weight_cost = 0
+    logist_cost = 0
+    for cost in costs:
+        if cost.name == 'Фулфилмент':
+            fullfilment_cost = cost.value
+        if cost.name == 'Вес товара':
+            weight_cost = cost.value
+        if cost.name == 'Логистика':
+            logist_cost = cost.value
+    pay_fullfilment = count_departure * fullfilment_cost
+    pay_logist = count_departure * logist_cost * weight_cost
+    payments.append({'name': 'Фулфилмент', 'value': pay_fullfilment})
+    payments.append({'name': 'Логистика', 'value': pay_logist})
+    write_json("ODDS/json_file/payments.json", payments)
+
+
 async def initial():
     logger.info("Парс апи модульбанка")
     date_now = datetime.now().date()
@@ -207,4 +242,8 @@ async def initial():
 
         await add_to_db_payments_incomes(full_income, Income, session)
         await add_to_db_payments_incomes(total_received_income, Income, session)
+
+        departure_with_sizes = await control_system_departure()
+        departure_full, count_departure = await get_departure_full(departure_with_sizes)
+        await get_pay_logist_and_fullfilment(count_departure, session)
 

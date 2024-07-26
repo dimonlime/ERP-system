@@ -4,7 +4,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine, AsyncSession
 import json
 
-engine = create_async_engine(url='sqlite+aiosqlite:////Users/samar/PycharmProjects/Nadziratel_Bot/db.sqlite3')
+engine = create_async_engine(url='sqlite+aiosqlite:////db.sqlite3')
 
 engine_ODDS = create_async_engine(url='sqlite+aiosqlite:///ODDS.sqlite3')
 
@@ -154,8 +154,8 @@ async def async_main():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, tables=[Order.__table__, Shipment.__table__, Cheque.__table__, Fish.__table__, ProductCard.__table__])
 
-    async with engine_ODDS.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all, tables=[Payment.__table__, Income.__table__, Credits.__table__])
+    #async with engine_ODDS.begin() as connection:
+        #await connection.run_sync(Base.metadata.create_all, tables=[Payment.__table__, Income.__table__, Credits.__table__])
 
 async def delete_tables():
     async with engine.begin() as conn:
