@@ -43,6 +43,7 @@ async def control_system_departure():
             if article not in validators:
                 articles.append({
                     'article': f'{order[0][3]}',
+                    'XS': 0,
                     'S': 0,
                     'M': 0,
                     'L': 0,
@@ -56,9 +57,10 @@ async def control_system_departure():
             article_value = order[0][3]
             for article in articles:
                 if article['article'] == article_value:
-                    article['S'] += shipment[4]
-                    article['M'] += shipment[5]
-                    article['L'] += shipment[6]
+                    article['XS'] += shipment[4]
+                    article['S'] += shipment[5]
+                    article['M'] += shipment[6]
+                    article['L'] += shipment[7]
     return articles
 
 def write_json(file_path, data, encoding='utf-8', ensure_ascii=False):

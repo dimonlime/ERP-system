@@ -194,7 +194,7 @@ async def get_departure_full(departure_with_sizes):
     count_departure_full = 0
     for item in departure_with_sizes:
         article = item['article']
-        count_departure = item['S'] + item['M'] + item['L']
+        count_departure = item['S'] + item['M'] + item['L'] + item['XS']
         count_departure_full += count_departure
         departure_full.append({"article": article, "count_departure": count_departure})
     return departure_full, count_departure_full
