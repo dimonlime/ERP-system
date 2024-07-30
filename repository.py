@@ -3,9 +3,10 @@ from typing import List
 
 from sqlalchemy import select
 
-from database import async_session, Order, Shipment, Cheque, Fish, ProductCard
+from database import (async_session, Order, Shipment, Cheque, Fish, ProductCard, LogistWarehouse, FullfilmenttWarehouse,
+                      WildberriesWarehouse, OzonWarehouse, YandexWarehouse)
 from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, \
-    SOrderAddForm
+    SOrderAddForm, SWarehouse
 
 
 class OrderRepository:
@@ -155,3 +156,58 @@ class ProductCardRepository:
             product_card_model = result.scalar()
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return product_card_model
+
+
+class LogistWarehouseRepository:
+    @classmethod
+    async def all_articles(cls):
+        async with async_session() as session:
+            query = select(LogistWarehouse)
+            result = await session.execute(query)
+            logist_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return logist_warehouse_models
+
+
+class FullfilmentWarehouseRepository:
+    @classmethod
+    async def all_articles(cls):
+        async with async_session() as session:
+            query = select(FullfilmenttWarehouse)
+            result = await session.execute(query)
+            fullfilment_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return fullfilment_warehouse_models
+
+
+class WildberriesWarehouseRepository:
+    @classmethod
+    async def all_articles(cls):
+        async with async_session() as session:
+            query = select(WildberriesWarehouse)
+            result = await session.execute(query)
+            wildberries_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return wildberries_warehouse_models
+
+
+class OzonWarehouseRepository:
+    @classmethod
+    async def all_articles(cls):
+        async with async_session() as session:
+            query = select(OzonWarehouse)
+            result = await session.execute(query)
+            ozon_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return ozon_warehouse_models
+
+
+class YandexWarehouseRepository:
+    @classmethod
+    async def all_articles(cls):
+        async with async_session() as session:
+            query = select(YandexWarehouse)
+            result = await session.execute(query)
+            yadnex_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return yadnex_warehouse_models

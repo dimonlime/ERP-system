@@ -21,7 +21,7 @@ class SOrderAdd(BaseModel):
     flag: Optional[bool] = False
 
 
-class ToolEnum(str, enum.Enum):
+class ArticleEnum(str, enum.Enum):
     article1 = '51920232'
     article2 = '51920233'
     article3 = '51920231'
@@ -29,6 +29,21 @@ class ToolEnum(str, enum.Enum):
     article5 = 'TR792KTD1PB1700'
     article6 = 'TR792FKD1CPB12226'
     article7 = 'TR792KTD1PB1603'
+    article8 = 'TR792KTD1PB24A4149'
+    article9 = 'TR792KTD1PB5002'
+    article10 = 'TR792KTD3PG1603'
+    article11 = 'TR792KTD2PBR1603'
+    article12 = 'TR792KTD1PB1701'
+    article13 = 'TR792KTD2PGR1701'
+
+
+class WarehouseEnum(str, enum.Enum):
+    warehouse1 = 'Склад логистов'
+    warehouse2 = 'Склад фуллфилмент'
+    warehouse3 = 'Склад wildberries'
+    warehouse4 = 'Склад ozon'
+    warehouse5 = 'Склад yandex'
+
 
 
 class SendingMethod(str, enum.Enum):
@@ -37,8 +52,18 @@ class SendingMethod(str, enum.Enum):
     Avia = 'Avia'
 
 
+class SWarehouseMovementForm(BaseModel):
+    start: WarehouseEnum = Field(title='Выберите склад с которого отправлять')
+    destination: WarehouseEnum = Field(title='Выберите склад куда отправлять')
+    quantity_xs: int = Field(title='Кол-во XS')
+    quantity_s: int = Field(title='Кол-во S')
+    quantity_m: int = Field(title='Кол-во M')
+    quantity_l: int = Field(title='Кол-во L')
+    comment: str = Field(title='Добавьте комментарий')
+
+
 class SOrderAddForm(BaseModel):
-    internal_article: ToolEnum = Field(title='Выберите артикул')
+    internal_article: ArticleEnum = Field(title='Выберите артикул')
     quantity_xs: int
     quantity_s: int = Field(title='Кол-во S')
     quantity_m: int = Field(title='Кол-во M')
@@ -99,7 +124,7 @@ class SCardAdd(BaseModel):
     vendor_internal_article: str
 
 
-class ArticleInfo(BaseModel):
+class SWarehouse(BaseModel):
     article: str
     quantity_xs: int
     quantity_s: int

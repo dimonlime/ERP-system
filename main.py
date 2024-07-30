@@ -14,10 +14,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ProductCardRepository
+from repository import (OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ProductCardRepository,
+                        LogistWarehouseRepository, FullfilmentWarehouseRepository, WildberriesWarehouseRepository, OzonWarehouseRepository,
+                        YandexWarehouseRepository)
 from schemas.schemas import (SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque,
                              SChequeId,
-                             SFish, SFishAdd, SFishId, SOrderAddForm)
+                             SFish, SFishAdd, SFishId, SOrderAddForm, SWarehouse, SWarehouseMovementForm)
 
 from fastui import AnyComponent, FastUI, prebuilt_html
 from fastui import components as c
@@ -63,11 +65,11 @@ def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyCo
                     on_click=GoToEvent(url='/cheques/fire'),
                     active='startswith:/cheques',
                 ),
-                # c.Link(
-                #     components=[c.Text(text='Информация по артикулам')],
-                #     on_click=GoToEvent(url='/article_info'),
-                #     active='startswith:/article_info',
-                # ),
+                c.Link(
+                    components=[c.Text(text='Склады')],
+                    on_click=GoToEvent(url='/warehouse/logist'),
+                    active='startswith:/warehouse/logist',
+                ),
             ],
         ),
         c.Page(
@@ -139,6 +141,47 @@ def cheque_tabs() -> list[AnyComponent]:
                     components=[c.Text(text='Архив')],
                     on_click=GoToEvent(url='/cheques/archive'),
                     active='startswith:/cheques/archive',
+                ),
+            ],
+            mode='tabs',
+            class_name='+ mb-4',
+        ),
+    ]
+
+
+def warehouse_tabs() -> list[AnyComponent]:
+    return [
+        c.LinkList(
+            links=[
+                c.Link(
+                    components=[c.Text(text='Склад логистов')],
+                    on_click=GoToEvent(url='/warehouse/logist'),
+                    active='startswith:/warehouse/logist',
+                ),
+                c.Link(
+                    components=[c.Text(text='Склад фуллфилмент')],
+                    on_click=GoToEvent(url='/warehouse/fullfilment'),
+                    active='startswith:/warehouse/fullfilment',
+                ),
+                c.Link(
+                    components=[c.Text(text='Склад wb')],
+                    on_click=GoToEvent(url='/warehouse/wildberries'),
+                    active='startswith:/warehouse/wildberries',
+                ),
+                c.Link(
+                    components=[c.Text(text='Склад озон')],
+                    on_click=GoToEvent(url='/warehouse/ozon'),
+                    active='startswith:/warehouse/ozon',
+                ),
+                c.Link(
+                    components=[c.Text(text='Склад яндекс')],
+                    on_click=GoToEvent(url='/warehouse/yandex'),
+                    active='startswith:/warehouse/yandex',
+                ),
+                c.Link(
+                    components=[c.Text(text='Создать перемещение')],
+                    on_click=GoToEvent(url='/warehouse/add_movement'),
+                    active='startswith:/warehouse/add_movement',
                 ),
             ],
             mode='tabs',
@@ -324,15 +367,13 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
                     columns=[
                         DisplayLookup(field='id', title='ID', on_click=GoToEvent(url='/shipments/current/{id}')),
                         DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
-                        DisplayLookup(field='change_date', title='Дата изменения'),
+                        DisplayLookup(field='change_date', title='Дата изменения', mode=DisplayMode.date),
                         DisplayLookup(field='quantity_xs', title='Кол-во XS', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_s', title='Кол-во S', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_m', title='Кол-во M', mode=DisplayMode.markdown),
                         DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
                         DisplayLookup(field='sending_method', title='Метод отправки', mode=DisplayMode.markdown),
-                        DisplayLookup(field='status', title='Статус'),
-                        # DisplayLookup(field='fish', title='ID FIS`'),
-                        # DisplayLookup(field='cheque', title='ID Чека'),
+                        DisplayLookup(field='status', title='Статус', mode=DisplayMode.markdown),
                     ],
                 ),
                 c.Pagination(page=page, page_size=page_size, total=len(shipments_full))
@@ -344,12 +385,6 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
 @app.post('/api/order')
 async def create_order(form: Annotated[SOrderAddForm, fastui_form(SOrderAddForm)]):
     await OrderRepository.add_order(form)
-    return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
-
-
-@app.post('/api/order/mark_order', response_model=FastUI, response_model_exclude_none=True)
-async def create_order():
-    print('z')
     return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
 
 
@@ -397,7 +432,6 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
                 DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
                 DisplayLookup(field='sending_method', title='Метод отправки', mode=DisplayMode.markdown),
                 DisplayLookup(field='status', title='Статус'),
-                # DisplayLookup(field='fish', title='ID FIS`'),
                 # DisplayLookup(field='cheque', title='ID Чека'),
             ],
         ),
@@ -490,8 +524,6 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
                     DisplayLookup(field='quantity_l', title='Кол-во L', mode=DisplayMode.markdown),
                     DisplayLookup(field='sending_method', title='Метод отправки', mode=DisplayMode.markdown),
                     DisplayLookup(field='status', title='Статус'),
-                    # DisplayLookup(field='fish', title='ID FIS`'),
-                    # DisplayLookup(field='cheque', title='ID Чека'),
                 ]),
             ]
         ),
@@ -720,41 +752,160 @@ async def incomes_view(cheque_id: int, page: int = 1) -> list[AnyComponent]:
     )
 
 
-@app.get('/api/article_info', response_model=FastUI, response_model_exclude_none=True)
+@app.get('/api/warehouse/logist', response_model=FastUI, response_model_exclude_none=True)
 async def articles_view(page: int = 1) -> list[AnyComponent]:
-    cheques = await ChequeRepository.all_cheques()
-    cheques_full = []
+    articles = await LogistWarehouseRepository.all_articles()
+    articles_full = []
     page_size = 10
-    for cheque in cheques:
-        if cheque.cheque_status == 'Чек оплачен':
-            cheque_object = SCheque(id=cheque.id, shipment_id=cheque.shipment_id, order_id=cheque.order_id,
-                                    date=cheque.date,
-                                    create_date=cheque.create_date, shop_name=cheque.shop_name,
-                                    cheque_number=cheque.cheque_number,
-                                    vendor_internal_article=cheque.vendor_internal_article, price=cheque.price,
-                                    cheque_image_id=cheque.cheque_image_id, cheque_status=cheque.cheque_status,
-                                    payment_image=cheque.payment_image)
-            cheques_full.append(cheque_object)
+    for article in articles:
+        shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
+                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
+                                     quantity_l=article.quantity_xs)
+        articles_full.append(shipment_object)
     return main_page(
-        *cheque_tabs(),
+        *warehouse_tabs(),
         c.Table(
-            data=cheques_full[(page - 1) * page_size: page * page_size],
-            data_model=SCheque,
+            data=articles_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouse,
             columns=[
-                DisplayLookup(field='id', title='ID'),
-                DisplayLookup(field='date', title='Дата чека'),
-                DisplayLookup(field='create_date', title='Дата создания', mode=DisplayMode.date),
-                DisplayLookup(field='shop_name', title='Название магазина'),
-                DisplayLookup(field='cheque_number', title='Номер чека', mode=DisplayMode.markdown),
-                DisplayLookup(field='vendor_internal_article', title='Внутренний артикул поставщика',
-                              mode=DisplayMode.markdown),
-                DisplayLookup(field='price', title='Цена', mode=DisplayMode.markdown),
-                DisplayLookup(field='cheque_status', title='Статус чека', mode=DisplayMode.markdown),
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
             ],
         ),
-        c.Pagination(page=page, page_size=page_size, total=len(cheques_full)),
-        title='Список артикулов находящихся в пути',
+        c.Pagination(page=page, page_size=page_size, total=len(articles_full)),
+        title='Кол-во товаров на складе логистов',
     )
+
+
+@app.get('/api/warehouse/fullfilment', response_model=FastUI, response_model_exclude_none=True)
+async def articles_view(page: int = 1) -> list[AnyComponent]:
+    articles = await FullfilmentWarehouseRepository.all_articles()
+    articles_full = []
+    page_size = 10
+    for article in articles:
+        shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
+                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
+                                     quantity_l=article.quantity_xs)
+        articles_full.append(shipment_object)
+    return main_page(
+        *warehouse_tabs(),
+        c.Table(
+            data=articles_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouse,
+            columns=[
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
+            ],
+        ),
+        c.Pagination(page=page, page_size=page_size, total=len(articles_full)),
+        title='Кол-во товаров на складе фуллфилмент',
+    )
+
+
+@app.get('/api/warehouse/wildberries', response_model=FastUI, response_model_exclude_none=True)
+async def articles_view(page: int = 1) -> list[AnyComponent]:
+    articles = await WildberriesWarehouseRepository.all_articles()
+    articles_full = []
+    page_size = 10
+    for article in articles:
+        shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
+                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
+                                     quantity_l=article.quantity_xs)
+        articles_full.append(shipment_object)
+    return main_page(
+        *warehouse_tabs(),
+        c.Table(
+            data=articles_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouse,
+            columns=[
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
+            ],
+        ),
+        c.Pagination(page=page, page_size=page_size, total=len(articles_full)),
+        title='Кол-во товаров на складе WB',
+    )
+
+
+@app.get('/api/warehouse/ozon', response_model=FastUI, response_model_exclude_none=True)
+async def articles_view(page: int = 1) -> list[AnyComponent]:
+    articles = await OzonWarehouseRepository.all_articles()
+    articles_full = []
+    page_size = 10
+    for article in articles:
+        shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
+                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
+                                     quantity_l=article.quantity_xs)
+        articles_full.append(shipment_object)
+    return main_page(
+        *warehouse_tabs(),
+        c.Table(
+            data=articles_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouse,
+            columns=[
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
+            ],
+        ),
+        c.Pagination(page=page, page_size=page_size, total=len(articles_full)),
+        title='Кол-во товаров на складе ozon',
+    )
+
+
+@app.get('/api/warehouse/yandex', response_model=FastUI, response_model_exclude_none=True)
+async def articles_view(page: int = 1) -> list[AnyComponent]:
+    articles = await YandexWarehouseRepository.all_articles()
+    articles_full = []
+    page_size = 10
+    for article in articles:
+        shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
+                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
+                                     quantity_l=article.quantity_xs)
+        articles_full.append(shipment_object)
+    return main_page(
+        *warehouse_tabs(),
+        c.Table(
+            data=articles_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouse,
+            columns=[
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
+            ],
+        ),
+        c.Pagination(page=page, page_size=page_size, total=len(articles_full)),
+        title='Кол-во товаров на складе yandex',
+    )
+
+
+@app.get('/api/warehouse/add_movement', response_model=FastUI, response_model_exclude_none=True)
+async def orders_view() -> list[AnyComponent]:
+    await ProductCardRepository.all_cards()
+    return main_page(
+        c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
+        c.Heading(text='Создать перемещение', level=2),
+        c.ModelForm(model=SWarehouseMovementForm, display_mode='page', submit_url='/api/order'),
+    )
+
+
+@app.post('/api/movement')
+async def create_order(form: Annotated[SOrderAddForm, fastui_form(SOrderAddForm)]):
+    await OrderRepository.add_order(form)
+    return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
 
 
 @app.get('/api/', response_model=FastUI, response_model_exclude_none=True)
