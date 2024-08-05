@@ -1,5 +1,12 @@
+import os
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 
+import aiofiles
+import fastapi
+import fastui
+import pydantic
 from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 import base64
@@ -8,30 +15,40 @@ from fastui.components.display import DisplayLookup, DisplayMode
 from fastui.forms import fastui_form
 from starlette.responses import HTMLResponse
 
-from database import async_main, delete_tables
-from routers.router import order_router, shipment_router, cheque_router, fish_router
+from database import async_main, delete_tables, async_session, LogistWarehouse, FullfilmenttWarehouse, \
+    WildberriesWarehouse, OzonWarehouse, YandexWarehouse, MovementHistory
+from routers.router import order_router, shipment_router, cheque_router, fish_router, router
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
 from repository import (OrderRepository, ShipmentRepository, ChequeRepository, FishRepository, ProductCardRepository,
-                        LogistWarehouseRepository, FullfilmentWarehouseRepository, WildberriesWarehouseRepository, OzonWarehouseRepository,
-                        YandexWarehouseRepository)
+                        LogistWarehouseRepository, FullfilmentWarehouseRepository, WildberriesWarehouseRepository,
+                        OzonWarehouseRepository,
+                        YandexWarehouseRepository, HistoryWarehouseRepository)
 from schemas.schemas import (SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque,
                              SChequeId,
-                             SFish, SFishAdd, SFishId, SOrderAddForm, SWarehouse, SWarehouseMovementForm)
+                             SFish, SFishAdd, SFishId, SOrderAddForm, SWarehouse, SWarehouseMovementForm,
+                             SWarehouseMovementHistory, SWarehouseMovementAddFileForm)
 
 from fastui import AnyComponent, FastUI, prebuilt_html
 from fastui import components as c
 from fastui.events import GoToEvent, BackEvent, PageEvent
+from sqlalchemy import select
+from fastapi import params as fastapi_params
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.exception_handlers import HTTPException
 
-
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # await delete_tables()
     # print('База очищена')
-    await async_main()
-    print('База готова к работе')
+    #await async_main()
+    #print('База готова к работе')
     yield
     print('Выключение')
 
@@ -41,8 +58,22 @@ app.include_router(order_router)
 # app.include_router(shipment_router)
 app.include_router(cheque_router)
 app.include_router(fish_router)
+app.include_router(router)
 
+def patched_fastui_form(model: type[fastui.forms.FormModel]) -> fastapi_params.Depends:
+    async def run_fastui_form(request: fastapi.Request):
+        async with request.form() as form_data:
+            model_data = fastui.forms.unflatten(form_data)
 
+            try:
+                yield model.model_validate(model_data)
+            except pydantic.ValidationError as e:
+                raise fastapi.HTTPException(
+                    status_code=422,
+                    detail={'form': e.errors(include_input=False, include_url=False, include_context=False)},
+                )
+
+    return fastapi.Depends(run_fastui_form)
 def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyComponent]:
     return [
         c.PageTitle(text='GND'),
@@ -179,10 +210,16 @@ def warehouse_tabs() -> list[AnyComponent]:
                     active='startswith:/warehouse/yandex',
                 ),
                 c.Link(
+                    components=[c.Text(text='История перемещений')],
+                    on_click=GoToEvent(url='/warehouse/all_history'),
+                    active='startswith:/warehouse/all_history',
+                ),
+                c.Link(
                     components=[c.Text(text='Создать перемещение')],
                     on_click=GoToEvent(url='/warehouse/add_movement'),
                     active='startswith:/warehouse/add_movement',
                 ),
+
             ],
             mode='tabs',
             class_name='+ mb-4',
@@ -759,8 +796,8 @@ async def articles_view(page: int = 1) -> list[AnyComponent]:
     page_size = 10
     for article in articles:
         shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
-                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
-                                     quantity_l=article.quantity_xs)
+                                     quantity_s=article.quantity_s, quantity_m=article.quantity_m,
+                                     quantity_l=article.quantity_l)
         articles_full.append(shipment_object)
     return main_page(
         *warehouse_tabs(),
@@ -787,8 +824,8 @@ async def articles_view(page: int = 1) -> list[AnyComponent]:
     page_size = 10
     for article in articles:
         shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
-                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
-                                     quantity_l=article.quantity_xs)
+                                     quantity_s=article.quantity_s, quantity_m=article.quantity_m,
+                                     quantity_l=article.quantity_l)
         articles_full.append(shipment_object)
     return main_page(
         *warehouse_tabs(),
@@ -815,8 +852,8 @@ async def articles_view(page: int = 1) -> list[AnyComponent]:
     page_size = 10
     for article in articles:
         shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
-                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
-                                     quantity_l=article.quantity_xs)
+                                     quantity_s=article.quantity_s, quantity_m=article.quantity_m,
+                                     quantity_l=article.quantity_l)
         articles_full.append(shipment_object)
     return main_page(
         *warehouse_tabs(),
@@ -843,8 +880,8 @@ async def articles_view(page: int = 1) -> list[AnyComponent]:
     page_size = 10
     for article in articles:
         shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
-                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
-                                     quantity_l=article.quantity_xs)
+                                     quantity_s=article.quantity_s, quantity_m=article.quantity_m,
+                                     quantity_l=article.quantity_l)
         articles_full.append(shipment_object)
     return main_page(
         *warehouse_tabs(),
@@ -871,8 +908,8 @@ async def articles_view(page: int = 1) -> list[AnyComponent]:
     page_size = 10
     for article in articles:
         shipment_object = SWarehouse(article=article.article, quantity_xs=article.quantity_xs,
-                                     quantity_s=article.quantity_xs, quantity_m=article.quantity_xs,
-                                     quantity_l=article.quantity_xs)
+                                     quantity_s=article.quantity_s, quantity_m=article.quantity_m,
+                                     quantity_l=article.quantity_l)
         articles_full.append(shipment_object)
     return main_page(
         *warehouse_tabs(),
@@ -898,8 +935,443 @@ async def orders_view() -> list[AnyComponent]:
     return main_page(
         c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
         c.Heading(text='Создать перемещение', level=2),
-        c.ModelForm(model=SWarehouseMovementForm, display_mode='page', submit_url='/api/order'),
+        c.ModelForm(model=SWarehouseMovementForm, display_mode='page', submit_url='/api/move'),
     )
+
+
+@app.post('/api/move', response_model=FastUI, response_model_exclude_none=True)
+async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastui_form(SWarehouseMovementForm)]):
+    print(form.file.filename.encode("utf-8"))
+    print(form.comment)
+    print(form)
+    if form.file.filename != '' and form.file.size > 0:
+        upload_directory = "uploads"
+        os.makedirs(upload_directory, exist_ok=True)
+
+
+        file_content = await form.file.read()
+
+
+        file_path = os.path.join(upload_directory, form.file.filename)
+
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(file_content)
+
+        await form.file.close()
+    async with async_session() as session:
+
+        flag = False
+        date_now_object = datetime.now()
+        formatted_date = date_now_object.strftime("%d.%m.%Y %H:%M:%S")
+        if(form.start.value == 'Склад логистов' or form.destination.value == 'Склад логистов'):
+            result = await session.execute(
+                select(LogistWarehouse).where(LogistWarehouse.article == form.article.value)
+            )
+            product = result.scalar_one_or_none()
+            if(form.start.value == 'Склад логистов' and product):
+                if((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                    and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                        flag = True
+                        product.quantity_xs -= form.quantity_xs
+                        product.quantity_s -= form.quantity_s
+                        product.quantity_m -= form.quantity_m
+                        product.quantity_l -= form.quantity_l
+            if(form.destination.value == 'Склад логистов' and flag == True):
+                if product:
+
+                    product.quantity_xs += form.quantity_xs
+                    product.quantity_s += form.quantity_s
+                    product.quantity_m += form.quantity_m
+                    product.quantity_l += form.quantity_l
+
+
+                    if form.file.filename != '' and form.file.size > 0:
+
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                 quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                 quantity_m=form.quantity_m, quantity_l=form.quantity_l, comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                        quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                        quantity_m=form.quantity_m, quantity_l=form.quantity_l, comment=form.comment)
+
+                    session.add(new_moving)
+                else:
+                    new_product = LogistWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
+                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                  quantity_l=form.quantity_l)
+                    session.add(new_product)
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+
+                    session.add(new_moving)
+
+
+        if(form.start.value == 'Склад фуллфилмент' or form.destination.value == 'Склад фуллфилмент'):
+            result = await session.execute(
+                select(FullfilmenttWarehouse).where(FullfilmenttWarehouse.article == form.article.value)
+            )
+            product = result.scalar_one_or_none()
+            if (form.start.value == 'Склад фуллфилмент' and product):
+                if ((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                     and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                    flag = True
+                    product.quantity_xs -= form.quantity_xs
+                    product.quantity_s -= form.quantity_s
+                    product.quantity_m -= form.quantity_m
+                    product.quantity_l -= form.quantity_l
+            if (form.destination.value == 'Склад фуллфилмент' and flag == True):
+                if product:
+                    product.quantity_xs += form.quantity_xs
+                    product.quantity_s += form.quantity_s
+                    product.quantity_m += form.quantity_m
+                    product.quantity_l += form.quantity_l
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+                else:
+                    new_product = FullfilmenttWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
+                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                  quantity_l=form.quantity_l)
+                    session.add(new_product)
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+        if(form.start.value == 'Склад wildberries' or form.destination.value == 'Склад wildberries'):
+            result = await session.execute(
+                select(WildberriesWarehouse).where(WildberriesWarehouse.article == form.article.value)
+            )
+            product = result.scalar_one_or_none()
+
+            if (form.start.value == 'Склад wildberries' and product):
+                if ((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                     and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                    flag = True
+                    product.quantity_xs -= form.quantity_xs
+                    product.quantity_s -= form.quantity_s
+                    product.quantity_m -= form.quantity_m
+                    product.quantity_l -= form.quantity_l
+            if (form.destination.value == 'Склад wildberries' and flag == True):
+                if product:
+                    product.quantity_xs += form.quantity_xs
+                    product.quantity_s += form.quantity_s
+                    product.quantity_m += form.quantity_m
+                    product.quantity_l += form.quantity_l
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+                else:
+                    new_product = WildberriesWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
+                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                  quantity_l=form.quantity_l)
+                    session.add(new_product)
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+        if (form.start.value == 'Склад ozon' or form.destination.value == 'Склад ozon'):
+            result = await session.execute(
+                select(OzonWarehouse).where(OzonWarehouse.article == form.article.value)
+            )
+            product = result.scalar_one_or_none()
+            if (form.start.value == 'Склад ozon' and product):
+                if ((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                     and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                    flag = True
+                    product.quantity_xs -= form.quantity_xs
+                    product.quantity_s -= form.quantity_s
+                    product.quantity_m -= form.quantity_m
+                    product.quantity_l -= form.quantity_l
+            if (form.destination.value == 'Склад ozon' and flag == True):
+                if product:
+                    product.quantity_xs += form.quantity_xs
+                    product.quantity_s += form.quantity_s
+                    product.quantity_m += form.quantity_m
+                    product.quantity_l += form.quantity_l
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+                else:
+                    new_product = OzonWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
+                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                  quantity_l=form.quantity_l)
+                    session.add(new_product)
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+        if (form.start.value == 'Склад yandex' or form.destination.value == 'Склад yandex'):
+            result = await session.execute(
+                select(YandexWarehouse).where(YandexWarehouse.article == form.article.value)
+            )
+            product = result.scalar_one_or_none()
+            if (form.start.value == 'Склад yandex' and product):
+                if ((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                     and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                    flag = True
+                    product.quantity_xs -= form.quantity_xs
+                    product.quantity_s -= form.quantity_s
+                    product.quantity_m -= form.quantity_m
+                    product.quantity_l -= form.quantity_l
+            if (form.destination.value == 'Склад yandex' and flag == True):
+                if product:
+                    product.quantity_xs += form.quantity_xs
+                    product.quantity_s += form.quantity_s
+                    product.quantity_m += form.quantity_m
+                    product.quantity_l += form.quantity_l
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+                else:
+                    new_product = YandexWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
+                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                  quantity_l=form.quantity_l)
+                    session.add(new_product)
+
+                    if form.file.filename != '' and form.file.size > 0:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=form.file.filename)
+                    else:
+                        new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
+                                                     article=form.article.value, time=formatted_date,
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
+                    session.add(new_moving)
+        await session.commit()
+
+    if(form.destination.value == 'Склад фуллфилмент'):
+        return [c.FireEvent(event=GoToEvent(url='/warehouse/fullfilment'))]
+    elif(form.destination.value == 'Склад wildberries'):
+        return [c.FireEvent(event=GoToEvent(url='/warehouse/wildberries'))]
+    elif(form.destination.value == 'Склад ozon'):
+        return [c.FireEvent(event=GoToEvent(url='/warehouse/ozon'))]
+    elif(form.destination.value == 'Склад yandex'):
+        return [c.FireEvent(event=GoToEvent(url='/warehouse/yandex'))]
+    else:
+        return [c.FireEvent(event=GoToEvent(url='/'))]
+
+
+@app.get("/api/files/{file_name}", response_model=FastUI, response_model_exclude_none=True)
+async def download_file(file_name: str):
+    print(file_name)
+    file_path = Path("uploads")/file_name
+    print(file_path)
+    print(os.path.exists(file_path))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
+
+def download_file_from_history(file_name):
+    file_path = os.path.join("/uploads", file_name)
+    return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
+@app.get('/api/warehouse/all_history', response_model=FastUI, response_model_exclude_none=True)
+async def history_view(page: int = 1) -> list[AnyComponent]:
+    history_moving = await HistoryWarehouseRepository.all_history()
+    history_full = []
+    page_size = 10
+    for history in history_moving:
+        history_object = SWarehouseMovementHistory(id=history.id, start=history.start,
+                                                   article=history.article, time=history.time,
+                                     destination=history.destination, quantity_xs=history.quantity_xs,
+                                     quantity_s=history.quantity_s, quantity_m=history.quantity_m,
+                                                   quantity_l=history.quantity_l, file=history.file, comment=history.comment)
+        print(history.file)
+        history_full.append(history_object)
+
+    return main_page(
+        *warehouse_tabs(),
+        c.Table(
+            data=history_full[(page - 1) * page_size: page * page_size],
+            data_model=SWarehouseMovementHistory,
+            columns=[
+
+                DisplayLookup(field='id', title='ID', on_click=GoToEvent(url="./{id}")),
+                DisplayLookup(field='article', title='Артикул'),
+                DisplayLookup(field='time', title='Время'),
+                DisplayLookup(field='start', title='Склад откуда отправили'),
+                DisplayLookup(field='destination', title='Склад куда отправили'),
+                DisplayLookup(field='quantity_xs', title='Кол-во XS'),
+                DisplayLookup(field='quantity_s', title='Кол-во S'),
+                DisplayLookup(field='quantity_m', title='Кол-во M'),
+                DisplayLookup(field='quantity_l', title='Кол-во L'),
+                DisplayLookup(field='file',
+                              title='Файл',
+                              on_click=GoToEvent(url="/files/{file}"),
+
+                              ),
+
+                DisplayLookup(field='comment', title='Комментарий'),
+            ],
+        ),
+        c.Pagination(page=page, page_size=page_size, total=len(history_full)),
+        title='История перемещений',
+    )
+
+@app.get('/api/warehouse/all_history/{history_id}', response_model=FastUI, response_model_exclude_none=True)
+async def history_id_view(history_id: int, page: int = 1) -> list[AnyComponent]:
+    history = await HistoryWarehouseRepository.get_history(history_id)
+
+
+    history_object = SWarehouseMovementHistory(id=history.id, start=history.start, destination=history.destination,
+                                               article=history.article, time=history.time,
+                                               quantity_xs=history.quantity_xs, quantity_s=history.quantity_s, quantity_m=history.quantity_m,
+                                               quantity_l=history.quantity_l, file=history.file, comment=history.comment)
+    if(history_object.file != None):
+        return main_page(
+            c.Div(
+                components=[
+                    c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
+                    c.Heading(text=f'Артикул: {history_object.article}', level=1),
+                    c.Heading(text=f'Время: {history_object.time}', level=1),
+                    c.Heading(text=f'Склад откуда отправлено: {history_object.start}', level=1),
+                    c.Heading(text=f'Склад куда отправлено: {history_object.destination}', level=1),
+
+
+                    c.Heading(text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}', level=2),
+                    c.Heading(text=f'Комментарий: {history_object.comment}', level=1),
+                    c.Heading(text=f'Файл: {history_object.file}', level=2)
+                ],
+            ),
+        )
+    else:
+        return main_page(
+            c.Div(
+                components=[
+                    c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
+                    c.Heading(text=f'Артикул: {history_object.article}', level=1),
+                    c.Heading(text=f'Время: {history_object.time}', level=1),
+                    c.Heading(text=f'Склад откуда отправлено: {history_object.start}', level=1),
+                    c.Heading(text=f'Склад куда отправлено: {history_object.destination}', level=1),
+
+                    c.Heading(
+                        text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}',
+                        level=2),
+                    c.Heading(text=f'Комментарий: {history_object.comment}', level=1),
+                    c.ModelForm(model=SWarehouseMovementAddFileForm, display_mode='page', submit_url=f'./add_file/{history_id}'),
+
+
+                ],
+            ),
+        )
+
+@app.post('/warehouse/all_history/add_file/{history_id}', response_model=FastUI, response_model_exclude_none=True)
+async def select_form_post(history_id: int, form: Annotated[SWarehouseMovementAddFileForm, patched_fastui_form(SWarehouseMovementAddFileForm)]):
+    print(history_id)
+    if form.file.filename != '' and form.file.size > 0:
+        upload_directory = "uploads"
+        os.makedirs(upload_directory, exist_ok=True)
+
+        file_content = await form.file.read()
+
+        file_path = os.path.join(upload_directory, form.file.filename)
+
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(file_content)
+
+        await form.file.close()
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(MovementHistory).where(MovementHistory.id == history_id)
+        )
+        moving = result.scalar_one_or_none()
+
+        if form.file.filename != '' and form.file.size > 0:
+            moving.file = form.file.filename
+
+        await session.commit()
+    return [c.FireEvent(event=GoToEvent(url=f'/warehouse/all_history/{history_id}'))]
 
 
 @app.post('/api/movement')

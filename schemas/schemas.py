@@ -1,8 +1,10 @@
 import enum
-from typing import Optional
+from typing import Optional, Annotated
 
+from fastapi import UploadFile, File
+from fastui.forms import FormFile
 from pydantic import BaseModel, Field
-
+from fastapi.responses import FileResponse
 
 class SOrderAdd(BaseModel):
     create_date: Optional[str] = None
@@ -55,12 +57,33 @@ class SendingMethod(str, enum.Enum):
 class SWarehouseMovementForm(BaseModel):
     start: WarehouseEnum = Field(title='Выберите склад с которого отправлять')
     destination: WarehouseEnum = Field(title='Выберите склад куда отправлять')
-    quantity_xs: int = Field(title='Кол-во XS')
-    quantity_s: int = Field(title='Кол-во S')
-    quantity_m: int = Field(title='Кол-во M')
-    quantity_l: int = Field(title='Кол-во L')
+    article: ArticleEnum = Field(title='Выберите артикул')
+    quantity_xs: int = Field(title='Кол-во XS', ge=0)
+    quantity_s: int = Field(title='Кол-во S', ge=0)
+    quantity_m: int = Field(title='Кол-во M', ge=0)
+    quantity_l: int = Field(title='Кол-во L', ge=0)
+    file: Annotated[UploadFile, FormFile(accept='.xlsx, .xls', max_size=int(1e7))] | None = Field(None,
+        description='Загрузка файла, максимальный размер 15мб'
+    )
     comment: str = Field(title='Добавьте комментарий')
 
+class SWarehouseMovementAddFileForm(BaseModel):
+    file: Annotated[UploadFile, FormFile(accept='.xlsx, .xls', max_size=int(1e7))] | None = Field(None,
+        description='Загрузка файла, максимальный размер 15мб'
+    )
+
+class SWarehouseMovementHistory(BaseModel):
+    id: int
+    article: str
+    time: str
+    start: str
+    destination: str
+    quantity_xs: int
+    quantity_s: int
+    quantity_m: int
+    quantity_l: int
+    file: Optional[str] = None
+    comment: Optional[str] = None
 
 class SOrderAddForm(BaseModel):
     internal_article: ArticleEnum = Field(title='Выберите артикул')
@@ -175,3 +198,6 @@ class SFishId(BaseModel):
 class SCardId(BaseModel):
     ok: bool = True
     fish_id: int
+
+class SHistory(BaseModel):
+    history_id: int

@@ -9,10 +9,10 @@ from starlette.responses import HTMLResponse
 
 from repository import OrderRepository, ShipmentRepository, ChequeRepository, FishRepository
 from schemas.schemas import SOrderAdd, SOrder, SOrderId, SShipment, SShipmentAdd, SShipmentId, SChequeAdd, SCheque, \
-    SChequeId, SFish, SFishAdd, SFishId
+    SChequeId, SFish, SFishAdd, SFishId, SWarehouseMovementForm
 
 order_router = APIRouter()
-
+router = APIRouter()
 shipment_router = APIRouter(
     prefix='/shipment',
     tags=['Поставки'],
@@ -75,3 +75,4 @@ async def add_fish(fish: Annotated[SFishAdd, Depends()]) -> SFishId:
 async def get_fishes() -> list[SFish]:
     fishes = await FishRepository.all_fishes()
     return fishes
+

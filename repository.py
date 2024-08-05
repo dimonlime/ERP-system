@@ -4,9 +4,9 @@ from typing import List
 from sqlalchemy import select
 
 from database import (async_session, Order, Shipment, Cheque, Fish, ProductCard, LogistWarehouse, FullfilmenttWarehouse,
-                      WildberriesWarehouse, OzonWarehouse, YandexWarehouse)
+                      WildberriesWarehouse, OzonWarehouse, YandexWarehouse, MovementHistory)
 from schemas.schemas import SOrderAdd, SOrder, SFishAdd, SChequeAdd, SCheque, SFish, SShipmentAdd, SShipment, \
-    SOrderAddForm, SWarehouse
+    SOrderAddForm, SWarehouse, SHistory
 
 
 class OrderRepository:
@@ -211,3 +211,22 @@ class YandexWarehouseRepository:
             yadnex_warehouse_models = result.scalars().all()
             # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
             return yadnex_warehouse_models
+
+class HistoryWarehouseRepository:
+    @classmethod
+    async def all_history(cls):
+        async with async_session() as session:
+            query = select(MovementHistory)
+            result = await session.execute(query)
+            history_warehouse_models = result.scalars().all()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in task_models]
+            return history_warehouse_models
+
+    @classmethod
+    async def get_history(cls, history_id) -> SHistory:
+        async with async_session() as session:
+            query = select(MovementHistory).where(MovementHistory.id == history_id)
+            result = await session.execute(query)
+            history_model = result.scalar()
+            # task_schemas = [SOrder.model_validate(task_model) for task_model in order_model]
+            return history_model
