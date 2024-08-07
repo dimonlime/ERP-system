@@ -39,7 +39,7 @@ from fastapi import params as fastapi_params
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.exception_handlers import HTTPException
-from pydrive.auth import GoogleAuth
+
 
 from google.oauth2 import service_account
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
@@ -56,7 +56,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 async def lifespan(app: FastAPI):
     # await delete_tables()
     # print('База очищена')
-    # await async_main()
+    #await async_main()
     # print('База готова к работе')
     yield
     print('Выключение')
@@ -980,7 +980,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
         await form.file.close()
 
         SCOPES = ['https://www.googleapis.com/auth/drive']
-        SERVICE_ACCOUNT_FILE = 'C:/Users/samar/PycharmProjects/ERP System/credentials.json'
+        SERVICE_ACCOUNT_FILE = 'credentials.json'
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         service = build('drive', 'v3', credentials=credentials)
@@ -1326,7 +1326,7 @@ async def history_view(page: int = 1) -> list[AnyComponent]:
                 DisplayLookup(field='quantity_l', title='Кол-во L'),
                 DisplayLookup(field='file',
                               title='Файл',
-                              on_click=GoToEvent(url="/files/{file}"),
+                              on_click=GoToEvent(url="https://drive.google.com/uc?export=download&id={file}"),
 
                               ),
 
@@ -1362,7 +1362,10 @@ async def history_id_view(history_id: int, page: int = 1) -> list[AnyComponent]:
                         text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}',
                         level=2),
                     c.Heading(text=f'Комментарий: {history_object.comment}', level=1),
-                    c.Heading(text=f'Файл: {history_object.file}', level=2)
+                    c.Link(
+                        components=[c.Heading(text=f'Файл', level=1)],
+                        on_click=GoToEvent(url=f'https://drive.google.com/uc?export=download&id={history_object.file}'),
+                    ),
                 ],
             ),
         )
@@ -1406,7 +1409,7 @@ async def select_form_post(history_id: int, form: Annotated[
         await form.file.close()
 
         SCOPES = ['https://www.googleapis.com/auth/drive']
-        SERVICE_ACCOUNT_FILE = 'C:/Users/samar/PycharmProjects/ERP System/credentials.json'
+        SERVICE_ACCOUNT_FILE = 'credentials.json'
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         service = build('drive', 'v3', credentials=credentials)
