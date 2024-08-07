@@ -39,16 +39,25 @@ from fastapi import params as fastapi_params
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.exception_handlers import HTTPException
+from pydrive.auth import GoogleAuth
+
+from google.oauth2 import service_account
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+from googleapiclient.discovery import build
+import pprint
+import io
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # await delete_tables()
     # print('База очищена')
-    #await async_main()
-    #print('База готова к работе')
+    # await async_main()
+    # print('База готова к работе')
     yield
     print('Выключение')
 
@@ -59,6 +68,7 @@ app.include_router(order_router)
 app.include_router(cheque_router)
 app.include_router(fish_router)
 app.include_router(router)
+
 
 def patched_fastui_form(model: type[fastui.forms.FormModel]) -> fastapi_params.Depends:
     async def run_fastui_form(request: fastapi.Request):
@@ -74,6 +84,8 @@ def patched_fastui_form(model: type[fastui.forms.FormModel]) -> fastapi_params.D
                 )
 
     return fastapi.Depends(run_fastui_form)
+
+
 def main_page(*components: AnyComponent, title: str | None = None) -> list[AnyComponent]:
     return [
         c.PageTitle(text='GND'),
@@ -236,7 +248,8 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
         if order.status == 'Заказ не готов':
             order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                   internal_article=order.internal_article,
-                                  vendor_internal_article=order.vendor_internal_article,quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
+                                  vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs,
+                                  quantity_s=order.quantity_s,
                                   quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                   color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                   order_image=order.order_image, status=order.status,
@@ -280,7 +293,8 @@ async def orders_view(page: int = 1) -> list[AnyComponent]:
         if order.status == 'Заказ готов':
             order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                   internal_article=order.internal_article,
-                                  vendor_internal_article=order.vendor_internal_article,quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
+                                  vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs,
+                                  quantity_s=order.quantity_s,
                                   quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                   color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                   order_image=order.order_image, status=order.status,
@@ -340,7 +354,8 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
     for shipment in shipments:
         if shipment.order_id == order_id:
             shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
+                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs,
+                                        quantity_s=shipment.quantity_s,
                                         quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                         status=shipment.status,
                                         sending_method=shipment.sending_method, sack_number=shipment.sack_number,
@@ -363,7 +378,8 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
 
     order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                           internal_article=order.internal_article,
-                          vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
+                          vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs,
+                          quantity_s=order.quantity_s,
                           quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                           color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                           order_image=order.order_image, status=order.status,
@@ -373,7 +389,9 @@ async def order_view(order_id: int, page: int = 1) -> list[AnyComponent]:
             components=[
                 c.Button(text='Назад', named_style='secondary', class_name='+ ms-2', on_click=BackEvent()),
                 c.Heading(text=order.internal_article, level=1),
-                c.Heading(text=f'XS: {order.quantity_xs} S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}', level=2),
+                c.Heading(
+                    text=f'XS: {order.quantity_xs} S: {order.quantity_s} M: {order.quantity_m} L: {order.quantity_l}',
+                    level=2),
                 c.Heading(text=f'Ожидается: XS: {remain_xs} S: {remain_s} M: {remain_m} L: {remain_l}', level=2),
                 image_component,
                 c.Details(data=order_object, fields=[
@@ -444,11 +462,13 @@ async def shipments_view(page: int = 1) -> list[AnyComponent]:
         order = await OrderRepository.get_order(shipment.order_id)
         if order.status != 'Заказ готов':
             shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
+                                        change_date=shipment.change_date, quantity_xs=shipment.quantity_xs,
+                                        quantity_s=shipment.quantity_s,
                                         quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                         status=shipment.status,
                                         sending_method=shipment.sending_method, sack_number=shipment.sack_number,
-                                        fish=shipment.fish, cheque=shipment.cheque, document_1_id=shipment.document_1_id,
+                                        fish=shipment.fish, cheque=shipment.cheque,
+                                        document_1_id=shipment.document_1_id,
                                         document_2_id=shipment.document_2_id,
                                         image_1_id=shipment.image_1_id, image_2_id=shipment.image_2_id)
             shipments_full.append(shipment_object)
@@ -535,7 +555,8 @@ async def incomes_view(shipment_id: int, page: int = 1) -> list[AnyComponent]:
                         fish_image_id=fish.fish_image_id)
 
     shipment_object = SShipment(id=shipment.id, order_id=shipment.order_id, create_date=shipment.create_date,
-                                change_date=shipment.change_date,quantity_xs=shipment.quantity_xs, quantity_s=shipment.quantity_s,
+                                change_date=shipment.change_date, quantity_xs=shipment.quantity_xs,
+                                quantity_s=shipment.quantity_s,
                                 quantity_m=shipment.quantity_m, quantity_l=shipment.quantity_l,
                                 status=shipment.status,
                                 sending_method=shipment.sending_method, sack_number=shipment.sack_number,
@@ -944,13 +965,12 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
     print(form.file.filename.encode("utf-8"))
     print(form.comment)
     print(form)
+    r = {}
     if form.file.filename != '' and form.file.size > 0:
         upload_directory = "uploads"
         os.makedirs(upload_directory, exist_ok=True)
 
-
         file_content = await form.file.read()
-
 
         file_path = os.path.join(upload_directory, form.file.filename)
 
@@ -958,25 +978,40 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
             await f.write(file_content)
 
         await form.file.close()
+
+        SCOPES = ['https://www.googleapis.com/auth/drive']
+        SERVICE_ACCOUNT_FILE = 'C:/Users/samar/PycharmProjects/ERP System/credentials.json'
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        service = build('drive', 'v3', credentials=credentials)
+        folder_id = '1icsnYtbMyif_yjQUy4xAMad8HVUcN3Or'
+        name = form.file.filename
+        file_metadata = {
+            'name': name,
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload(file_path, resumable=True)
+        r = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
     async with async_session() as session:
 
         flag = False
         date_now_object = datetime.now()
         formatted_date = date_now_object.strftime("%d.%m.%Y %H:%M:%S")
-        if(form.start.value == 'Склад логистов' or form.destination.value == 'Склад логистов'):
+        if (form.start.value == 'Склад логистов' or form.destination.value == 'Склад логистов'):
             result = await session.execute(
                 select(LogistWarehouse).where(LogistWarehouse.article == form.article.value)
             )
             product = result.scalar_one_or_none()
-            if(form.start.value == 'Склад логистов' and product):
-                if((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
-                    and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
-                        flag = True
-                        product.quantity_xs -= form.quantity_xs
-                        product.quantity_s -= form.quantity_s
-                        product.quantity_m -= form.quantity_m
-                        product.quantity_l -= form.quantity_l
-            if(form.destination.value == 'Склад логистов' and flag == True):
+            if (form.start.value == 'Склад логистов' and product):
+                if ((product.quantity_xs >= form.quantity_xs and product.quantity_s >= form.quantity_s
+                     and product.quantity_m >= form.quantity_m and product.quantity_l >= form.quantity_l)):
+                    flag = True
+                    product.quantity_xs -= form.quantity_xs
+                    product.quantity_s -= form.quantity_s
+                    product.quantity_m -= form.quantity_m
+                    product.quantity_l -= form.quantity_l
+            if (form.destination.value == 'Склад логистов' and flag == True):
                 if product:
 
                     product.quantity_xs += form.quantity_xs
@@ -984,18 +1019,19 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                     product.quantity_m += form.quantity_m
                     product.quantity_l += form.quantity_l
 
-
                     if form.file.filename != '' and form.file.size > 0:
 
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
-                                                 quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
-                                                 quantity_m=form.quantity_m, quantity_l=form.quantity_l, comment=form.comment, file=form.file.filename)
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
-                                        quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
-                                        quantity_m=form.quantity_m, quantity_l=form.quantity_l, comment=form.comment)
+                                                     quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
+                                                     quantity_m=form.quantity_m, quantity_l=form.quantity_l,
+                                                     comment=form.comment)
 
                     session.add(new_moving)
                 else:
@@ -1008,7 +1044,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1018,8 +1054,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
 
                     session.add(new_moving)
 
-
-        if(form.start.value == 'Склад фуллфилмент' or form.destination.value == 'Склад фуллфилмент'):
+        if (form.start.value == 'Склад фуллфилмент' or form.destination.value == 'Склад фуллфилмент'):
             result = await session.execute(
                 select(FullfilmenttWarehouse).where(FullfilmenttWarehouse.article == form.article.value)
             )
@@ -1044,7 +1079,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1054,8 +1089,8 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                     session.add(new_moving)
                 else:
                     new_product = FullfilmenttWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
-                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
-                                                  quantity_l=form.quantity_l)
+                                                        quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                        quantity_l=form.quantity_l)
                     session.add(new_product)
 
                     if form.file.filename != '' and form.file.size > 0:
@@ -1063,7 +1098,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1071,7 +1106,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
                                                      comment=form.comment)
                     session.add(new_moving)
-        if(form.start.value == 'Склад wildberries' or form.destination.value == 'Склад wildberries'):
+        if (form.start.value == 'Склад wildberries' or form.destination.value == 'Склад wildberries'):
             result = await session.execute(
                 select(WildberriesWarehouse).where(WildberriesWarehouse.article == form.article.value)
             )
@@ -1097,7 +1132,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1107,8 +1142,8 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                     session.add(new_moving)
                 else:
                     new_product = WildberriesWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
-                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
-                                                  quantity_l=form.quantity_l)
+                                                       quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                       quantity_l=form.quantity_l)
                     session.add(new_product)
 
                     if form.file.filename != '' and form.file.size > 0:
@@ -1116,7 +1151,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1149,7 +1184,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1159,8 +1194,8 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                     session.add(new_moving)
                 else:
                     new_product = OzonWarehouse(article=form.article.value, quantity_xs=form.quantity_xs,
-                                                  quantity_s=form.quantity_s, quantity_m=form.quantity_m,
-                                                  quantity_l=form.quantity_l)
+                                                quantity_s=form.quantity_s, quantity_m=form.quantity_m,
+                                                quantity_l=form.quantity_l)
                     session.add(new_product)
 
                     if form.file.filename != '' and form.file.size > 0:
@@ -1168,7 +1203,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1201,7 +1236,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1220,7 +1255,7 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                                                      article=form.article.value, time=formatted_date,
                                                      quantity_xs=form.quantity_xs, quantity_s=form.quantity_s,
                                                      quantity_m=form.quantity_m, quantity_l=form.quantity_l,
-                                                     comment=form.comment, file=form.file.filename)
+                                                     comment=form.comment, file=r['id'])
                     else:
                         new_moving = MovementHistory(start=form.start.value, destination=form.destination.value,
                                                      article=form.article.value, time=formatted_date,
@@ -1230,13 +1265,13 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
                     session.add(new_moving)
         await session.commit()
 
-    if(form.destination.value == 'Склад фуллфилмент'):
+    if (form.destination.value == 'Склад фуллфилмент'):
         return [c.FireEvent(event=GoToEvent(url='/warehouse/fullfilment'))]
-    elif(form.destination.value == 'Склад wildberries'):
+    elif (form.destination.value == 'Склад wildberries'):
         return [c.FireEvent(event=GoToEvent(url='/warehouse/wildberries'))]
-    elif(form.destination.value == 'Склад ozon'):
+    elif (form.destination.value == 'Склад ozon'):
         return [c.FireEvent(event=GoToEvent(url='/warehouse/ozon'))]
-    elif(form.destination.value == 'Склад yandex'):
+    elif (form.destination.value == 'Склад yandex'):
         return [c.FireEvent(event=GoToEvent(url='/warehouse/yandex'))]
     else:
         return [c.FireEvent(event=GoToEvent(url='/'))]
@@ -1245,16 +1280,19 @@ async def select_form_post(form: Annotated[SWarehouseMovementForm, patched_fastu
 @app.get("/api/files/{file_name}", response_model=FastUI, response_model_exclude_none=True)
 async def download_file(file_name: str):
     print(file_name)
-    file_path = Path("uploads")/file_name
+    file_path = Path("uploads") / file_name
     print(file_path)
     print(os.path.exists(file_path))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
 
+
 def download_file_from_history(file_name):
     file_path = os.path.join("/uploads", file_name)
     return FileResponse(file_path, media_type='application/octet-stream', filename=file_name)
+
+
 @app.get('/api/warehouse/all_history', response_model=FastUI, response_model_exclude_none=True)
 async def history_view(page: int = 1) -> list[AnyComponent]:
     history_moving = await HistoryWarehouseRepository.all_history()
@@ -1263,9 +1301,10 @@ async def history_view(page: int = 1) -> list[AnyComponent]:
     for history in history_moving:
         history_object = SWarehouseMovementHistory(id=history.id, start=history.start,
                                                    article=history.article, time=history.time,
-                                     destination=history.destination, quantity_xs=history.quantity_xs,
-                                     quantity_s=history.quantity_s, quantity_m=history.quantity_m,
-                                                   quantity_l=history.quantity_l, file=history.file, comment=history.comment)
+                                                   destination=history.destination, quantity_xs=history.quantity_xs,
+                                                   quantity_s=history.quantity_s, quantity_m=history.quantity_m,
+                                                   quantity_l=history.quantity_l, file=history.file,
+                                                   comment=history.comment)
         print(history.file)
         history_full.append(history_object)
 
@@ -1298,16 +1337,18 @@ async def history_view(page: int = 1) -> list[AnyComponent]:
         title='История перемещений',
     )
 
+
 @app.get('/api/warehouse/all_history/{history_id}', response_model=FastUI, response_model_exclude_none=True)
 async def history_id_view(history_id: int, page: int = 1) -> list[AnyComponent]:
     history = await HistoryWarehouseRepository.get_history(history_id)
 
-
     history_object = SWarehouseMovementHistory(id=history.id, start=history.start, destination=history.destination,
                                                article=history.article, time=history.time,
-                                               quantity_xs=history.quantity_xs, quantity_s=history.quantity_s, quantity_m=history.quantity_m,
-                                               quantity_l=history.quantity_l, file=history.file, comment=history.comment)
-    if(history_object.file != None):
+                                               quantity_xs=history.quantity_xs, quantity_s=history.quantity_s,
+                                               quantity_m=history.quantity_m,
+                                               quantity_l=history.quantity_l, file=history.file,
+                                               comment=history.comment)
+    if (history_object.file != None):
         return main_page(
             c.Div(
                 components=[
@@ -1317,8 +1358,9 @@ async def history_id_view(history_id: int, page: int = 1) -> list[AnyComponent]:
                     c.Heading(text=f'Склад откуда отправлено: {history_object.start}', level=1),
                     c.Heading(text=f'Склад куда отправлено: {history_object.destination}', level=1),
 
-
-                    c.Heading(text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}', level=2),
+                    c.Heading(
+                        text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}',
+                        level=2),
                     c.Heading(text=f'Комментарий: {history_object.comment}', level=1),
                     c.Heading(text=f'Файл: {history_object.file}', level=2)
                 ],
@@ -1338,16 +1380,18 @@ async def history_id_view(history_id: int, page: int = 1) -> list[AnyComponent]:
                         text=f'Количество единиц: XS: {history_object.quantity_xs} S: {history_object.quantity_s} M: {history_object.quantity_m} L: {history_object.quantity_l}',
                         level=2),
                     c.Heading(text=f'Комментарий: {history_object.comment}', level=1),
-                    c.ModelForm(model=SWarehouseMovementAddFileForm, display_mode='page', submit_url=f'./add_file/{history_id}'),
-
+                    c.ModelForm(model=SWarehouseMovementAddFileForm, display_mode='page',
+                                submit_url=f'./add_file/{history_id}'),
 
                 ],
             ),
         )
 
+
 @app.post('/warehouse/all_history/add_file/{history_id}', response_model=FastUI, response_model_exclude_none=True)
-async def select_form_post(history_id: int, form: Annotated[SWarehouseMovementAddFileForm, patched_fastui_form(SWarehouseMovementAddFileForm)]):
-    print(history_id)
+async def select_form_post(history_id: int, form: Annotated[
+    SWarehouseMovementAddFileForm, patched_fastui_form(SWarehouseMovementAddFileForm)]):
+    r = {}
     if form.file.filename != '' and form.file.size > 0:
         upload_directory = "uploads"
         os.makedirs(upload_directory, exist_ok=True)
@@ -1361,6 +1405,20 @@ async def select_form_post(history_id: int, form: Annotated[SWarehouseMovementAd
 
         await form.file.close()
 
+        SCOPES = ['https://www.googleapis.com/auth/drive']
+        SERVICE_ACCOUNT_FILE = 'C:/Users/samar/PycharmProjects/ERP System/credentials.json'
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        service = build('drive', 'v3', credentials=credentials)
+        folder_id = '1icsnYtbMyif_yjQUy4xAMad8HVUcN3Or'
+        name = form.file.filename
+        file_metadata = {
+            'name': name,
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload(file_path, resumable=True)
+        r = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
     async with async_session() as session:
         result = await session.execute(
             select(MovementHistory).where(MovementHistory.id == history_id)
@@ -1368,16 +1426,10 @@ async def select_form_post(history_id: int, form: Annotated[SWarehouseMovementAd
         moving = result.scalar_one_or_none()
 
         if form.file.filename != '' and form.file.size > 0:
-            moving.file = form.file.filename
+            moving.file = r['id']
 
         await session.commit()
     return [c.FireEvent(event=GoToEvent(url=f'/warehouse/all_history/{history_id}'))]
-
-
-@app.post('/api/movement')
-async def create_order(form: Annotated[SOrderAddForm, fastui_form(SOrderAddForm)]):
-    await OrderRepository.add_order(form)
-    return [c.FireEvent(event=GoToEvent(url='/orders/current'))]
 
 
 @app.get('/api/', response_model=FastUI, response_model_exclude_none=True)
@@ -1393,7 +1445,8 @@ async def components_view(page: int = 1) -> list[AnyComponent]:
             if week <= order_date <= today_date:
                 order_object = SOrder(id=order.id, create_date=order.create_date, change_date=order.change_date,
                                       internal_article=order.internal_article,
-                                      vendor_internal_article=order.vendor_internal_article, quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
+                                      vendor_internal_article=order.vendor_internal_article,
+                                      quantity_xs=order.quantity_xs, quantity_s=order.quantity_s,
                                       quantity_m=order.quantity_m, quantity_l=order.quantity_l,
                                       color=order.color, shop_name=order.shop_name, sending_method=order.sending_method,
                                       order_image=order.order_image, status=order.status,

@@ -4,7 +4,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
 import json
 
-engine = create_async_engine(url='sqlite+aiosqlite:///D:\\Работа\\New_bot\\Nadziratel_Bot\\db.sqlite3')
+engine = create_async_engine(url='sqlite+aiosqlite:////Users/samar/PycharmProjects/Nadziratel_Bot/db.sqlite3')
 
 
 async_session = async_sessionmaker(engine, expire_on_commit=False)
@@ -161,7 +161,6 @@ class MovementHistory(Base):
     time: Mapped[str] = mapped_column(String(255))
     start: Mapped[str] = mapped_column(String(255))
     destination: Mapped[str] = mapped_column(String(255))
-
     quantity_xs: Mapped[int] = mapped_column()
     quantity_s: Mapped[int] = mapped_column()
     quantity_m: Mapped[int] = mapped_column()
